@@ -1,54 +1,36 @@
-# API de Download de Vídeos do Instagram
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Este é um projeto de API simples para realizar o download de vídeos do Instagram. Utiliza o framework Fastify para fornecer endpoints de download.
+## Getting Started
 
-## Como Usar
-
-### Instalação
-
-Certifique-se de ter o Node.js instalado. Em seguida, execute:
+First, run the development server:
 
 ```bash
-npm install
-```
-ou
-
-```bash
-yarn
-```
-
-### Execução
-
-Para iniciar o servidor, utilize o seguinte comando:
-
-```bash
-node index.js
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-O servidor estará disponível em http://localhost:3000 por padrão.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-### Endpoint de Download
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-Para baixar um vídeo do Instagram, acesse o seguinte endpoint:
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-```
-GET /download/?url=Link-do-video-instagram
-```
+## Learn More
 
-Certifique-se de substituir "Link-do-video-instagram" pela URL do vídeo desejado.
+To learn more about Next.js, take a look at the following resources:
 
-#### Exemplo de Uso
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-```bash
-curl http://localhost:3000/download/?url=https://www.instagram.com/p/1234567890/
-```
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-Isso retornará um JSON com a URL do vídeo disponível para download.
+## Deploy on Vercel
 
-```json
-{
-  "videoUrl": "..."
-}
-```
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-Baseado no projeto [instagram-video-downloader](https://github.com/riad-azz/instagram-video-downloader)
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
