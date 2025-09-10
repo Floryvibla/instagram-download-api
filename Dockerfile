@@ -5,19 +5,13 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Enable pnpm
-RUN corepack enable pnpm
-
 # Install dependencies based on the preferred package manager
-COPY package.json pnpm-lock.yaml* ./
-RUN pnpm i --frozen-lockfile
+COPY package.json package-lock.json* ./
+RUN npm ci --only=production
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
-
-# Enable pnpm
-RUN corepack enable pnpm
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -26,7 +20,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED 1
 
 # Build the application
-RUN pnpm run build
+RUN npm run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
