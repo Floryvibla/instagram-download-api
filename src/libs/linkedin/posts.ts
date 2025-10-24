@@ -19,10 +19,6 @@ export const getCommentsByPostUrl = async (
 
   // Se não há elementos, retorna os comentários acumulados
   if (!elements || elements.length === 0) {
-    // console.log(
-    //   "✅ Busca finalizada. Total de comentários:",
-    //   accumulatedComments.length
-    // );
     return accumulatedComments;
   }
 

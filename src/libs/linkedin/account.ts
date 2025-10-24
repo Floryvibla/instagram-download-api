@@ -8,60 +8,59 @@ import {
 
 export const getProfile = async (identifier: string) => {
   const response = await fetchData(
-    `/identity/profiles/${identifier}/profileView`
+    `/identity/dash/profiles?q=memberIdentity&memberIdentity=${identifier}`
   );
 
   const data = response.data;
-  console.log("data: ", data);
 
-  const dataResult: any[] = response?.included;
+  // const dataResult: any[] = response?.included;
 
-  const getEntityByUrn = (urn: string) =>
-    dataResult.find((item) => item.entityUrn === urn);
+  // const getEntityByUrn = (urn: string) =>
+  //   dataResult.find((item) => item.entityUrn === urn);
 
-  const keyProfile = getEntityByUrn(data?.["*profile"]);
-  if (!keyProfile) throw new Error("Key profile not found");
+  // const keyProfile = getEntityByUrn(data?.["*profile"]);
+  // if (!keyProfile) throw new Error("Key profile not found");
 
-  const miniProfile = getEntityByUrn(keyProfile?.["*miniProfile"]);
-  if (!miniProfile) throw new Error("Mini profile not found");
+  // const miniProfile = getEntityByUrn(keyProfile?.["*miniProfile"]);
+  // if (!miniProfile) throw new Error("Mini profile not found");
 
-  const profile = {
-    // id_urn: keyProfile.entityUrn?.split("urn:li:fs_profile:")[1] || null,
-    publicIdentifier: miniProfile?.publicIdentifier || null,
-    firstName: keyProfile.firstName || null,
-    lastName: keyProfile.lastName || null,
-    fullName: `${keyProfile.firstName || ""} ${keyProfile.lastName || ""}`,
-    birthDate: keyProfile.birthDate
-      ? JSON.stringify({
-          month: keyProfile.birthDate.month,
-          day: keyProfile.birthDate.day,
-        })
-      : null,
-    profilePicture: miniProfile.picture
-      ? `${miniProfile.picture.rootUrl}${
-          miniProfile.picture.artifacts[
-            miniProfile.picture.artifacts.length - 1
-          ]?.fileIdentifyingUrlPathSegment
-        }`
-      : null,
-    backgroundPicture: miniProfile.backgroundImage
-      ? `${miniProfile.backgroundImage.rootUrl}${
-          miniProfile.backgroundImage.artifacts[
-            miniProfile.backgroundImage.artifacts.length - 1
-          ]?.fileIdentifyingUrlPathSegment
-        }`
-      : null,
-    location: {
-      country: keyProfile.locationName || null,
-      city: keyProfile.geoLocationName || null,
-    },
-    address: keyProfile.address || null,
-    industry: keyProfile.industryName || null,
-    headline: keyProfile.headline || null,
-    summary: keyProfile.summary || null,
-  };
+  // const profile = {
+  //   // id_urn: keyProfile.entityUrn?.split("urn:li:fs_profile:")[1] || null,
+  //   publicIdentifier: miniProfile?.publicIdentifier || null,
+  //   firstName: keyProfile.firstName || null,
+  //   lastName: keyProfile.lastName || null,
+  //   fullName: `${keyProfile.firstName || ""} ${keyProfile.lastName || ""}`,
+  //   birthDate: keyProfile.birthDate
+  //     ? JSON.stringify({
+  //         month: keyProfile.birthDate.month,
+  //         day: keyProfile.birthDate.day,
+  //       })
+  //     : null,
+  //   profilePicture: miniProfile.picture
+  //     ? `${miniProfile.picture.rootUrl}${
+  //         miniProfile.picture.artifacts[
+  //           miniProfile.picture.artifacts.length - 1
+  //         ]?.fileIdentifyingUrlPathSegment
+  //       }`
+  //     : null,
+  //   backgroundPicture: miniProfile.backgroundImage
+  //     ? `${miniProfile.backgroundImage.rootUrl}${
+  //         miniProfile.backgroundImage.artifacts[
+  //           miniProfile.backgroundImage.artifacts.length - 1
+  //         ]?.fileIdentifyingUrlPathSegment
+  //       }`
+  //     : null,
+  //   location: {
+  //     country: keyProfile.locationName || null,
+  //     city: keyProfile.geoLocationName || null,
+  //   },
+  //   address: keyProfile.address || null,
+  //   industry: keyProfile.industryName || null,
+  //   headline: keyProfile.headline || null,
+  //   summary: keyProfile.summary || null,
+  // };
 
-  return profile;
+  return data;
 };
 
 export const getProfissionalExperiences = async (identifier: string) => {
@@ -69,7 +68,7 @@ export const getProfissionalExperiences = async (identifier: string) => {
     `/identity/profiles/${identifier}/positions`
   );
 
-  let { data, included } = response;
+  const { data, included } = response;
   const elements = data["*elements"] as string[];
 
   // Usar a nova função para resolver referências automaticamente
