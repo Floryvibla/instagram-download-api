@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import puppeteer, { Browser, Page, Cookie } from "puppeteer";
-import fs from "fs-extra";
 import {
-  COOKIES_FILE_PATH,
   STEALTH_CONFIG,
   LINKEDIN_URLS,
   TIMEOUTS,

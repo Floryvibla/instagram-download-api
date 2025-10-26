@@ -1,6 +1,6 @@
 import { LinkedInAutomation } from "@/libs/browser/linkedin-automation";
 
-export async function GET(req: Request) {
+export async function GET() {
   const automation = new LinkedInAutomation();
 
   try {
