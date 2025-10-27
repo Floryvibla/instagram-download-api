@@ -6,9 +6,9 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
-COPY package.json package-lock.json* ./
+COPY package.json yarn.lock ./
 # Instalar TODAS as dependências para o build (incluindo devDependencies)
-RUN npm ci
+RUN yarn install --frozen-lockfile
 
 # Rebuild the source code only when needed
 FROM base AS builder
