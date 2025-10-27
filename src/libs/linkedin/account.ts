@@ -1,17 +1,85 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { fetchData } from "./config";
 import {
   extractDataWithReferences,
   extractFields,
   extractFieldsFromIncluded,
+  getNestedValue,
   mergeExtraFields,
 } from "./utils";
 
+export const extractProfileIdLinkedin = async (profileUrl: string) => {
+  const match = profileUrl.match(/linkedin\.com\/in\/([a-zA-Z0-9-]+)/);
+  const profileId = match ? match[1] : profileUrl;
+
+  if (profileId) {
+    const response = await fetchData(
+      `graphql?variables=(vanityName:${profileId})&queryId=voyagerIdentityDashProfiles.34ead06db82a2cc9a778fac97f69ad6a`
+    );
+
+    if ("included" in response) {
+      const profileData = response.included.find(
+        (item: any) => item?.publicIdentifier === `${profileId}`
+      );
+
+      return profileData?.entityUrn.replace("urn:li:fsd_profile:", "") || null;
+    }
+
+    return null;
+  }
+
+  return null;
+};
+
 export const getProfile = async (identifier: string) => {
   const response = await fetchData(
-    `/identity/dash/profiles?q=memberIdentity&memberIdentity=${identifier}`
+    `graphql?variables=(vanityName:${identifier})&queryId=voyagerIdentityDashProfiles.34ead06db82a2cc9a778fac97f69ad6a`
   );
 
-  const data = response.data;
+  if ("included" in response) {
+    const profileData = response.included.find(
+      (item: any) => item?.publicIdentifier === `${identifier}`
+    );
+
+    const profile = {
+      id_urn: profileData?.entityUrn.replace("urn:li:fsd_profile:", ""),
+      publicIdentifier: profileData?.publicIdentifier,
+      firstName: profileData?.firstName,
+      lastName: profileData?.lastName,
+      fullName: `${profileData?.firstName || ""} ${
+        profileData?.lastName || ""
+      }`,
+      headline: getNestedValue(profileData, "headline"),
+      birthDate: {
+        month: profileData.birthDateOn.month,
+        day: profileData.birthDateOn.day,
+      },
+      profilePicture: `${getNestedValue(
+        profileData,
+        "profilePicture.displayImageReferenceResolutionResult.vectorImage.rootUrl"
+      )}${
+        getNestedValue(
+          profileData,
+          "profilePicture.displayImageReferenceResolutionResult.vectorImage.artifacts"
+        ).at(-1).fileIdentifyingUrlPathSegment
+      }`,
+      backgroundPicture: `${getNestedValue(
+        profileData,
+        "backgroundPicture.displayImageReferenceResolutionResult.vectorImage.rootUrl"
+      )}${
+        getNestedValue(
+          profileData,
+          "backgroundPicture.displayImageReferenceResolutionResult.vectorImage.artifacts"
+        ).at(-1).fileIdentifyingUrlPathSegment
+      }`,
+    };
+
+    return profile;
+  }
+
+  throw new Error("Profile not found");
+
+  // const data = response.data;
 
   // const dataResult: any[] = response?.included;
 
@@ -24,43 +92,7 @@ export const getProfile = async (identifier: string) => {
   // const miniProfile = getEntityByUrn(keyProfile?.["*miniProfile"]);
   // if (!miniProfile) throw new Error("Mini profile not found");
 
-  // const profile = {
-  //   // id_urn: keyProfile.entityUrn?.split("urn:li:fs_profile:")[1] || null,
-  //   publicIdentifier: miniProfile?.publicIdentifier || null,
-  //   firstName: keyProfile.firstName || null,
-  //   lastName: keyProfile.lastName || null,
-  //   fullName: `${keyProfile.firstName || ""} ${keyProfile.lastName || ""}`,
-  //   birthDate: keyProfile.birthDate
-  //     ? JSON.stringify({
-  //         month: keyProfile.birthDate.month,
-  //         day: keyProfile.birthDate.day,
-  //       })
-  //     : null,
-  //   profilePicture: miniProfile.picture
-  //     ? `${miniProfile.picture.rootUrl}${
-  //         miniProfile.picture.artifacts[
-  //           miniProfile.picture.artifacts.length - 1
-  //         ]?.fileIdentifyingUrlPathSegment
-  //       }`
-  //     : null,
-  //   backgroundPicture: miniProfile.backgroundImage
-  //     ? `${miniProfile.backgroundImage.rootUrl}${
-  //         miniProfile.backgroundImage.artifacts[
-  //           miniProfile.backgroundImage.artifacts.length - 1
-  //         ]?.fileIdentifyingUrlPathSegment
-  //       }`
-  //     : null,
-  //   location: {
-  //     country: keyProfile.locationName || null,
-  //     city: keyProfile.geoLocationName || null,
-  //   },
-  //   address: keyProfile.address || null,
-  //   industry: keyProfile.industryName || null,
-  //   headline: keyProfile.headline || null,
-  //   summary: keyProfile.summary || null,
-  // };
-
-  return data;
+  // return data;
 };
 
 export const getProfissionalExperiences = async (identifier: string) => {

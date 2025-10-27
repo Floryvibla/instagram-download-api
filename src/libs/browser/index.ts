@@ -9,7 +9,7 @@ import {
 } from "./config";
 import { saveAllCookies, loadAllCookies } from "../linkedin/config";
 
-interface LinkedInCredentials {
+export interface LinkedInCredentials {
   email: string;
   password: string;
 }
@@ -24,7 +24,7 @@ const humanDelay = (
 };
 
 // Função para carregar cookies salvos (usando a nova função)
-const loadCookies = async (): Promise<Cookie[] | null> => {
+export const loadCookies = async (): Promise<Cookie[] | null> => {
   try {
     const cookies = await loadAllCookies();
     if (cookies) {
@@ -123,6 +123,35 @@ const performLogin = async (
     });
 
     await humanDelay();
+
+    // Verificar se já existe um perfil logado (member-profile-block)
+    try {
+      const memberProfileBlock = await page.$(".member-profile-block");
+      if (memberProfileBlock) {
+        console.log(
+          "✅ Perfil já logado encontrado! Clicando para continuar..."
+        );
+        await memberProfileBlock.click();
+        await humanDelay(2000, 3000);
+
+        // Verificar se foi redirecionado com sucesso
+        const currentUrl = page.url();
+        const isLoggedIn =
+          currentUrl.includes("/feed/") ||
+          currentUrl.includes("/in/") ||
+          currentUrl === LINKEDIN_URLS.HOME;
+
+        if (isLoggedIn) {
+          console.log("✅ Login automático realizado com sucesso!");
+          await saveCookies(page, browser);
+          return true;
+        }
+      }
+    } catch (error) {
+      console.log(
+        "ℹ️ Nenhum perfil logado encontrado, continuando com login manual..."
+      );
+    }
 
     // Aguardar campos de login
     await page.waitForSelector("#username", { timeout: TIMEOUTS.ELEMENT_WAIT });

@@ -1,11 +1,18 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as fs from "fs-extra";
 import axios from "axios";
 import { Cookie } from "puppeteer";
+import { LoginLinkedin } from "./login";
 
 export const COOKIE_FILE_PATH = "linkedin_cookies.json";
 
 export const API_BASE_URL = "https://www.linkedin.com/voyager/api";
 export const AUTH_BASE_URL = "https://www.linkedin.com";
+
+export const LINKEDIN_CREDS = {
+  email: "fmignon243@gmail.com",
+  password: "kinshasardc",
+};
 
 // Interface para os cookies completos (formato Puppeteer)
 interface LinkedInCookiesFile {
@@ -53,14 +60,6 @@ export const loadAllCookies = async (): Promise<Cookie[] | null> => {
       return null;
     }
 
-    // Verificar se os cookies não expiraram (1 semana)
-    // const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
-    // if (Date.now() - cookieData.timestamp > ONE_WEEK) {
-    //   console.log("Cookies expirados, removendo arquivo");
-    //   await fs.remove(COOKIE_FILE_PATH);
-    //   return null;
-    // }
-
     console.log(
       `${cookieData.cookies.length} cookies carregados de: ${COOKIE_FILE_PATH}`
     );
@@ -95,75 +94,24 @@ export const extractApiCookies = (
   };
 };
 
-// Função para salvar cookies específicos (compatibilidade com código existente)
-export const saveCookies = async (
-  JSESSIONID: string,
-  li_at: string
-): Promise<void> => {
-  try {
-    // Criar cookies no formato Puppeteer
-    const cookies: Cookie[] = [
-      {
-        name: "JSESSIONID",
-        value: `"ajax:${JSESSIONID}"`,
-        domain: ".www.linkedin.com",
-        path: "/",
-        expires: -1,
-        size: 0,
-        httpOnly: false,
-        secure: true,
-        session: true,
-        sameSite: "None",
-      },
-      {
-        name: "li_at",
-        value: li_at,
-        domain: ".linkedin.com",
-        path: "/",
-        expires: -1,
-        size: 0,
-        httpOnly: true,
-        secure: true,
-        session: false,
-        sameSite: "None",
-      },
-    ];
-
-    await saveAllCookies(cookies);
-  } catch (error) {
-    console.error("Erro ao salvar cookies específicos:", error);
-    throw error;
-  }
-};
-
-// Função para carregar cookies específicos (compatibilidade com código existente)
-export const loadCookies = async (): Promise<LinkedInApiCookies | null> => {
-  try {
-    const allCookies = await loadAllCookies();
-    if (!allCookies) {
-      return null;
-    }
-
-    return extractApiCookies(allCookies);
-  } catch (error) {
-    console.error("Erro ao carregar cookies específicos:", error);
-    return null;
-  }
-};
-
 // Função para criar cliente com cookies automáticos
 export const Client = async (
   providedCookies?: LinkedInApiCookies
 ): Promise<ReturnType<typeof api>> => {
   let cookiesToUse: LinkedInApiCookies;
-  const savedCookies = await loadCookies();
+  const savedCookies = await loadAllCookies();
 
   if (savedCookies) {
-    cookiesToUse = savedCookies;
+    const JSESSIONID =
+      savedCookies
+        .find((c) => c.name === "JSESSIONID")
+        ?.value.split("ajax:")[1] || "0";
+    const li_at = savedCookies.find((c) => c.name === "li_at")?.value || "";
+    cookiesToUse = { JSESSIONID, li_at };
   } else {
     if (providedCookies) {
-      await saveCookies(providedCookies.JSESSIONID, providedCookies.li_at);
       cookiesToUse = providedCookies;
+      console.log("Cookies fornecidos:", cookiesToUse);
     } else {
       throw new Error("Nenhum cookie válido fornecido");
     }
@@ -178,6 +126,8 @@ export const Client = async (
 const api = ({ JSESSIONID, li_at }: { li_at: string; JSESSIONID: number }) => {
   return axios.create({
     baseURL: API_BASE_URL,
+    maxRedirects: 3, // Limitar redirecionamentos a 3
+    timeout: 10000, // Timeout de 10 segundos
     headers: {
       "accept-language":
         "pt-BR,pt;q=0.9,fr-FR;q=0.8,fr;q=0.7,en-US;q=0.6,en;q=0.5",
@@ -188,8 +138,27 @@ const api = ({ JSESSIONID, li_at }: { li_at: string; JSESSIONID: number }) => {
   });
 };
 
-export const fetchData = async (endpoint: string) => {
-  const api = await Client();
-  const response = await api.get(endpoint);
-  return response.data;
+export const fetchData = async (endpoint: string): Promise<any> => {
+  try {
+    const api = await Client();
+    const response = await api.get(endpoint);
+    return response.data;
+  } catch (error: any) {
+    console.error("Erro ao buscar dados:", error.message);
+    console.error("Status do erro:", error.response?.status);
+    console.error("Código do erro:", error.code);
+
+    // Verificar se é erro de autenticação ou redirecionamento
+    if (
+      error.response?.status === 401 ||
+      error.response?.status === 403 ||
+      error.code === "ERR_FR_TOO_MANY_REDIRECTS" ||
+      error.message === "Maximum number of redirects exceeded"
+    ) {
+      console.log("🔄 Tentando fazer login novamente...");
+      await LoginLinkedin();
+      return fetchData(endpoint);
+    }
+    throw error;
+  }
 };
