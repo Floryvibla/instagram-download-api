@@ -52,8 +52,8 @@ export const getProfile = async (identifier: string) => {
       }`,
       headline: getNestedValue(profileData, "headline"),
       birthDate: {
-        month: profileData.birthDateOn.month,
-        day: profileData.birthDateOn.day,
+        month: profileData?.birthDateOn?.month || null,
+        day: profileData?.birthDateOn?.day || null,
       },
       profilePicture: `${getNestedValue(
         profileData,
@@ -62,7 +62,7 @@ export const getProfile = async (identifier: string) => {
         getNestedValue(
           profileData,
           "profilePicture.displayImageReferenceResolutionResult.vectorImage.artifacts"
-        ).at(-1).fileIdentifyingUrlPathSegment
+        )?.at(-1)?.fileIdentifyingUrlPathSegment || null
       }`,
       backgroundPicture: `${getNestedValue(
         profileData,
@@ -71,7 +71,7 @@ export const getProfile = async (identifier: string) => {
         getNestedValue(
           profileData,
           "backgroundPicture.displayImageReferenceResolutionResult.vectorImage.artifacts"
-        ).at(-1).fileIdentifyingUrlPathSegment
+        )?.at(-1)?.fileIdentifyingUrlPathSegment || null
       }`,
     };
 
