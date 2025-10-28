@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProfile, getProfissionalExperiences } from "@/libs/linkedin";
+import {
+  getCompany,
+  getProfile,
+  getProfissionalExperiences,
+} from "@/libs/linkedin";
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,6 +22,8 @@ export async function GET(request: NextRequest) {
 
     if (field === "experiences") {
       data = await getProfissionalExperiences(identifier);
+    } else if (field === "company") {
+      data = await getCompany(identifier);
     } else {
       data = await getProfile(identifier);
     }

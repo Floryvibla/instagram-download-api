@@ -29,5 +29,15 @@ export const getCompany = async (identifier: string) => {
     permissions: "permissions",
   };
 
-  return extractFields(data, fieldsMap)[0];
+  return extractFields(data, fieldsMap).map((item) => ({
+    ...item,
+    id: item.id.split(":")[3],
+    backgroundCoverImage: `${item.backgroundCoverImage?.rootUrl}${
+      item.backgroundCoverImage?.artifacts?.at(-1)
+        ?.fileIdentifyingUrlPathSegment
+    }`,
+    logo: `${item.logo?.rootUrl}${
+      item.logo?.artifacts?.at(-1)?.fileIdentifyingUrlPathSegment
+    }`,
+  }))[0];
 };
