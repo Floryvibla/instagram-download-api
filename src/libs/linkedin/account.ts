@@ -82,8 +82,14 @@ export const getProfile = async (identifier: string) => {
 };
 
 export const getProfissionalExperiences = async (identifier: string) => {
+  const profileId = await extractProfileIdLinkedin(identifier);
+
+  if (!profileId) {
+    throw new Error("Profile not found");
+  }
+
   const response = await fetchData(
-    `graphql?variables=(profileUrn:urn%3Ali%3Afsd_profile%3AACoAABgQ7uMBHhkeqe_cSk1_5fNcRa3Q1TZ8j0k,sectionType:experience,locale:en_US)&queryId=voyagerIdentityDashProfileComponents.c5d4db426a0f8247b8ab7bc1d660775a`
+    `graphql?variables=(profileUrn:urn%3Ali%3Afsd_profile%3A${profileId},sectionType:experience,locale:en_US)&queryId=voyagerIdentityDashProfileComponents.c5d4db426a0f8247b8ab7bc1d660775a`
   );
 
   const experiencesField = {

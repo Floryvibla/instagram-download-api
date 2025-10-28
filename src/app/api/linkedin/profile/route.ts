@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const identifier = searchParams.get("identifier");
-    const profissional = searchParams.get("profissional");
+    const field = searchParams.get("field");
 
     if (!identifier) {
       return NextResponse.json(
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     let data;
 
-    if (profissional) {
+    if (field === "experiences") {
       data = await getProfissionalExperiences(identifier);
     } else {
       data = await getProfile(identifier);
