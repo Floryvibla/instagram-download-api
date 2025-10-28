@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export function filterKeys(obj: any, keysToKeep: string[]) {
   const filteredObject: any = {};
@@ -232,4 +233,311 @@ export function mergeExtraFields(
 
     return item;
   });
+}
+
+// src/libs/linkedin/extractExperiences.ts
+type AnyObject = Record<string, any>;
+
+interface Experience {
+  role: string;
+  company: string;
+  time_duration?: string;
+  location?: string;
+  description?: string;
+  time_period?: string;
+  duration?: string;
+}
+
+export function extractExperiences(jsonData: AnyObject): Experience[] {
+  const experiences: Experience[] = [];
+
+  try {
+    const included = jsonData?.included ?? [];
+    if (!included.length) {
+      console.warn("[PROFILE] No 'included' array found");
+      return experiences;
+    }
+
+    // ===== PASS 1: Build component map by URN =====
+    console.info(
+      `[PROFILE] Pass 1: Building component map from ${included.length} items`
+    );
+    const componentMap: Record<string, AnyObject> = {};
+    for (const item of included) {
+      const urn = item?.entityUrn;
+      if (urn) componentMap[urn] = item;
+    }
+
+    console.info(
+      `[PROFILE] Pass 1: Indexed ${
+        Object.keys(componentMap).length
+      } components by URN`
+    );
+
+    // ===== PASS 2: Find anchor and traverse =====
+    let mainExperienceUrn: string | null = null;
+    for (const urn of Object.keys(componentMap)) {
+      if (
+        urn.includes("EXPERIENCE_VIEW_DETAILS") &&
+        urn.includes("fsd_profile:")
+      ) {
+        mainExperienceUrn = urn;
+        console.info(`[PROFILE] Pass 2: Found main experience anchor: ${urn}`);
+        break;
+      }
+    }
+
+    if (!mainExperienceUrn) {
+      console.warn("[PROFILE] Pass 2: No experience anchor found");
+      return experiences;
+    }
+
+    const mainList = componentMap[mainExperienceUrn];
+    if (!mainList) {
+      console.error(
+        "[PROFILE] Pass 2: Anchor URN not in map (shouldn't happen)"
+      );
+      return experiences;
+    }
+
+    let elements: any[] =
+      mainList.elements ?? mainList.components?.elements ?? [];
+
+    console.info(
+      `[PROFILE] Pass 2: Found ${elements.length} experience blocks`
+    );
+
+    const paging = mainList.paging ?? mainList.components?.paging;
+    if (paging) {
+      const { total = "unknown", count = "unknown", start = 0 } = paging;
+      console.warn(
+        `[PROFILE] PAGINATION: ${count} of ${total} experiences (start: ${start})`
+      );
+    }
+
+    if (!elements.length) {
+      console.warn("[PROFILE] Pass 2: No elements in main list");
+      return experiences;
+    }
+
+    // Step 4: Process each experience block
+    elements.forEach((elem, idx) => {
+      try {
+        if (typeof elem !== "object" || elem === null) return;
+
+        const entity = elem?.components?.entityComponent;
+        if (typeof entity !== "object" || !entity) {
+          console.debug(`[PROFILE] Element ${idx}: No entityComponent`);
+          return;
+        }
+
+        // Detect nested grouped roles (company with multiple positions)
+        let nestedUrn: string | null = null;
+        const subCompsWrapper = entity.subComponents;
+        if (typeof subCompsWrapper === "object" && subCompsWrapper) {
+          const subComponents = subCompsWrapper.components;
+          if (Array.isArray(subComponents) && subComponents.length > 0) {
+            const firstSub = subComponents[0];
+            const subComps = firstSub?.components;
+            if (typeof subComps === "object" && subComps) {
+              for (const key of ["*pagedListComponent", "pagedListComponent"]) {
+                const value = subComps[key];
+                if (value) {
+                  nestedUrn =
+                    typeof value === "string"
+                      ? value
+                      : value?.entityUrn ?? null;
+                  if (nestedUrn) break;
+                }
+              }
+              if (!nestedUrn) {
+                for (const [key, value] of Object.entries(subComps)) {
+                  if (
+                    key.toLowerCase().includes("pagedlistcomponent") &&
+                    value
+                  ) {
+                    nestedUrn =
+                      typeof value === "string"
+                        ? value
+                        : (value as any)?.entityUrn ?? null;
+                    if (nestedUrn) break;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        if (nestedUrn) {
+          // GROUPED ENTRY (company with multiple roles)
+          let companyName = "";
+          const titleV2 = entity.titleV2;
+          if (typeof titleV2 === "object") {
+            const textObj = titleV2.text;
+            companyName =
+              typeof textObj === "string" ? textObj : textObj?.text ?? "";
+          }
+
+          let totalDuration = "";
+          const subtitle = entity.subtitle;
+          if (typeof subtitle === "object") {
+            const textObj = subtitle.text;
+            totalDuration =
+              typeof textObj === "string" ? textObj : textObj?.text ?? "";
+          }
+
+          console.info(
+            `[PROFILE] Element ${idx}: Grouped company '${companyName}' (${totalDuration})`
+          );
+
+          const nestedList = componentMap[nestedUrn];
+          if (nestedList) {
+            const nestedElements =
+              nestedList.elements ?? nestedList.components?.elements ?? [];
+
+            console.info(
+              `[PROFILE] Found ${nestedElements.length} roles for '${companyName}'`
+            );
+
+            for (const [roleIdx, roleElem] of nestedElements.entries()) {
+              const roleEntity = roleElem?.components?.entityComponent;
+              if (roleEntity && typeof roleEntity === "object") {
+                const exp = extractOneExperience(roleEntity, companyName);
+                if (exp) {
+                  console.debug(
+                    `[PROFILE] Extracted role ${roleIdx + 1}/${
+                      nestedElements.length
+                    }: ${exp.role} at ${companyName}`
+                  );
+                  experiences.push(exp);
+                }
+              }
+            }
+          } else {
+            console.warn(`[PROFILE] Nested URN not found in map: ${nestedUrn}`);
+          }
+
+          // Continue to next element without extracting parent
+          return;
+        }
+
+        // SINGLE ENTRY
+        const titleV2 = entity.titleV2;
+        const caption = entity.caption;
+
+        if (titleV2 && !caption) {
+          console.warn(
+            `[PROFILE] Element ${idx}: Skipping potential parent block`
+          );
+          return;
+        }
+
+        const exp = extractOneExperience(entity);
+        if (exp) experiences.push(exp);
+      } catch (err: any) {
+        console.warn(`[PROFILE] Error on element ${idx}: ${err.message}`);
+      }
+    });
+
+    console.info(
+      `[PROFILE] Successfully extracted ${experiences.length} total experiences`
+    );
+  } catch (err: any) {
+    console.error(`[PROFILE] Fatal error: ${err.message}`);
+  }
+
+  return experiences;
+}
+
+// Helper function
+function extractOneExperience(
+  entity: AnyObject,
+  companyOverride?: string
+): Experience | null {
+  if (!entity || typeof entity !== "object") return null;
+
+  const safeGetText = (obj: any, ...keys: string[]): string => {
+    let current = obj;
+    for (const key of keys) {
+      if (typeof current !== "object" || current === null) return "";
+      current = current[key];
+      if (current === undefined || current === null) return "";
+    }
+    return typeof current === "string" ? current : current?.text ?? "";
+  };
+
+  const title = safeGetText(entity, "titleV2", "text", "text");
+  if (!title) return null;
+
+  let company = companyOverride ?? "";
+  if (!company) {
+    const subtitle = entity.subtitle;
+    if (typeof subtitle === "object") {
+      company =
+        typeof subtitle.text === "string"
+          ? subtitle.text
+          : subtitle.text?.text ?? "";
+    }
+  }
+
+  let dates = "";
+  const caption = entity.caption;
+  if (typeof caption === "object") {
+    dates =
+      typeof caption.text === "string"
+        ? caption.text
+        : caption.text?.text ?? "";
+  }
+
+  let location = "";
+  const metadata = entity.metadata;
+  if (typeof metadata === "object") {
+    location =
+      typeof metadata.text === "string"
+        ? metadata.text
+        : metadata.text?.text ?? "";
+  }
+
+  let description = "";
+  try {
+    const subcomps = entity.subComponents;
+    const components = subcomps?.components;
+    if (Array.isArray(components)) {
+      for (const sc of components) {
+        const scComps = sc?.components;
+        const fixed = scComps?.fixedListComponent;
+        const fixedComps = fixed?.components;
+        if (Array.isArray(fixedComps)) {
+          for (const fc of fixedComps) {
+            const txtComp = fc?.components?.textComponent;
+            const txt = safeGetText(txtComp, "text", "text");
+            if (txt) {
+              description = txt;
+              break;
+            }
+          }
+        }
+        if (description) break;
+      }
+    }
+  } catch (err: any) {
+    console.debug(`[PROFILE] Error extracting description: ${err.message}`);
+  }
+
+  const result: Experience = {
+    role: title,
+    company: company || "N/A",
+    time_duration: dates || "",
+    location: location || "",
+    description: description || "N/A",
+  };
+
+  if (dates.includes("·")) {
+    const parts = dates.split("·");
+    result.time_period = parts[0].trim();
+    if (parts[1]) result.duration = parts[1].trim();
+  }
+
+  console.info(`[PROFILE] ✓ ${title} at ${company || "N/A"}`);
+  return result;
 }

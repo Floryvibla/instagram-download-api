@@ -2,6 +2,7 @@
 import { fetchData } from "./config";
 import {
   extractDataWithReferences,
+  extractExperiences,
   extractFields,
   extractFieldsFromIncluded,
   getNestedValue,
@@ -78,27 +79,53 @@ export const getProfile = async (identifier: string) => {
   }
 
   throw new Error("Profile not found");
-
-  // const data = response.data;
-
-  // const dataResult: any[] = response?.included;
-
-  // const getEntityByUrn = (urn: string) =>
-  //   dataResult.find((item) => item.entityUrn === urn);
-
-  // const keyProfile = getEntityByUrn(data?.["*profile"]);
-  // if (!keyProfile) throw new Error("Key profile not found");
-
-  // const miniProfile = getEntityByUrn(keyProfile?.["*miniProfile"]);
-  // if (!miniProfile) throw new Error("Mini profile not found");
-
-  // return data;
 };
 
 export const getProfissionalExperiences = async (identifier: string) => {
   const response = await fetchData(
-    `/identity/profiles/${identifier}/positions`
+    `graphql?variables=(profileUrn:urn%3Ali%3Afsd_profile%3AACoAABgQ7uMBHhkeqe_cSk1_5fNcRa3Q1TZ8j0k,sectionType:experience,locale:en_US)&queryId=voyagerIdentityDashProfileComponents.c5d4db426a0f8247b8ab7bc1d660775a`
   );
+
+  const experiencesField = {
+    id: "entityUrn",
+    title: "title",
+    companyName: "company.miniCompany.name",
+    companyUrn: "companyUrn",
+    companyEmployeeCount: "company.employeeCountRange",
+    companyIndustries: "company.miniCompany.industries",
+    description: "description",
+    location: "locationName",
+    geoLocation: "geoLocationName",
+    timePeriod: "timePeriod",
+    startDate: "timePeriod.startDate",
+    endDate: "timePeriod.endDate",
+  };
+
+  const total = response.included[0].components.paging.total;
+  const experiencia = response.included[0].components.elements.map(
+    (item: any) => ({
+      company: item.components.entityComponent.subtitle.text,
+      role: item.components.entityComponent.titleV2.text.text,
+      typeContract: item.components.entityComponent.subtitle.text
+        .split("·")[1]
+        .trim(),
+      typeJob: item.components.entityComponent.caption.text
+        .split("·")[1]
+        .trim(),
+      companyUrlLinkedin: item.components.entityComponent.textActionTarget,
+      location: item.components.entityComponent.caption.text
+        .split("·")[0]
+        .trim(),
+    })
+  );
+
+  return extractExperiences(response);
+
+  return {
+    total,
+    experiencia,
+    elements: response.included[0].components.elements,
+  };
 
   const { data, included } = response;
   const elements = data["*elements"] as string[];
