@@ -5,6 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const identifier = searchParams.get("identifier");
+    const profissional = searchParams.get("profissional");
 
     if (!identifier) {
       return NextResponse.json(
@@ -13,11 +14,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const profile = await getProfissionalExperiences(identifier);
+    let data;
+
+    if (profissional) {
+      data = await getProfissionalExperiences(identifier);
+    } else {
+      data = await getProfile(identifier);
+    }
 
     return NextResponse.json({
       success: true,
-      data: profile,
+      data,
     });
   } catch (error) {
     console.error("Erro ao buscar perfil:", error);
