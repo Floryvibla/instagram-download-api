@@ -94,3 +94,159 @@ export const getProfissionalExperiences = async (identifier: string) => {
 
   return extractExperiences(response);
 };
+
+export const getContactInfo = async (identifier: string) => {
+  const profileId = await extractProfileIdLinkedin(identifier);
+
+  if (!profileId) {
+    throw new Error("Profile not found");
+  }
+
+  const response = await fetchData(
+    `graphql?includeWebMetadata=true&variables=(memberIdentity:${identifier})&queryId=voyagerIdentityDashProfiles.c7452e58fa37646d09dae4920fc5b4b9`
+  );
+
+  const included = response?.included || [];
+  if (!included.length) {
+    console.warn("[PROFILE] No 'included' array found");
+    return [];
+  }
+
+  const dataProfile = included.find(
+    (item: any) => item?.entityUrn === `urn:li:fsd_profile:${profileId}`
+  );
+
+  const contactInfo = {
+    address: dataProfile?.address || null,
+    weChatContactInfo: dataProfile?.weChatContactInfo || null,
+    phoneNumbers:
+      dataProfile?.phoneNumbers?.map(
+        (item: any) => item?.phoneNumber?.number
+      ) || null,
+    emailAddress: dataProfile?.emailAddress?.emailAddress || null,
+    websites:
+      dataProfile?.websites?.map((item: any) => ({
+        label: item?.label,
+        url: item?.url,
+      })) || null,
+  };
+
+  return contactInfo;
+};
+
+export const getLinkedinSkills = async (identifier: string) => {
+  const profileId = await extractProfileIdLinkedin(identifier);
+
+  if (!profileId) {
+    throw new Error("Profile not found");
+  }
+
+  const response = await fetchData(
+    `graphql?includeWebMetadata=true&variables=(profileUrn:urn%3Ali%3Afsd_profile%3A${profileId},sectionType:skills,locale:pt_BR)&queryId=voyagerIdentityDashProfileComponents.c5d4db426a0f8247b8ab7bc1d660775a`
+  );
+
+  const included = response?.included || [];
+
+  const componentsSkills = included
+    .filter(
+      (item: any) =>
+        item?.$type ===
+        "com.linkedin.voyager.dash.identity.profile.tetris.PagedListComponent"
+    )
+    .map((item: any) =>
+      item?.components.elements.map(
+        (item: any) =>
+          item?.components.entityComponent.titleV2.text.text || null
+      )
+    )
+    .filter((item: any) => item !== null)
+    .flat();
+
+  return componentsSkills;
+};
+
+export const getLinkedinEducation = async (identifier: string) => {
+  const profileId = await extractProfileIdLinkedin(identifier);
+
+  if (!profileId) {
+    throw new Error("Profile not found");
+  }
+
+  const response = await fetchData(
+    `graphql?includeWebMetadata=true&variables=(profileUrn:urn%3Ali%3Afsd_profile%3A${profileId},sectionType:education,locale:pt_BR)&queryId=voyagerIdentityDashProfileComponents.c5d4db426a0f8247b8ab7bc1d660775a`
+  );
+
+  const included = response?.included || [];
+
+  const componentsEducation = included
+    .filter(
+      (item: any) =>
+        item?.$type ===
+        "com.linkedin.voyager.dash.identity.profile.tetris.PagedListComponent"
+    )
+    .map((item: any) =>
+      item?.components.elements.map(
+        (item: any) => item?.components.entityComponent || null
+      )
+    )
+    .filter((item: any) => item !== null);
+
+  const parseData = componentsEducation?.[0] || [];
+
+  const educationData = parseData.map((item: any) => {
+    const isStudying = item?.caption === null;
+
+    const skillsData = item?.subComponents.components.find(
+      (item: any) => item?.components?.insightComponent === null
+    );
+
+    return {
+      schoolName: item?.titleV2?.text?.text || null,
+      linkedinUrlSchool: item?.textActionTarget || null,
+      degreeName: item?.subtitle.text || null,
+      startDate: !isStudying
+        ? Number(item?.caption?.text?.split(" - ")[0]) || null
+        : null,
+      endDate: !isStudying
+        ? Number(item?.caption?.text?.split(" - ")[1]) || null
+        : null,
+      isStudying,
+      skills:
+        skillsData?.components?.fixedListComponent?.components[0]?.components
+          ?.textComponent?.text.text || null,
+    };
+  });
+
+  return educationData;
+};
+
+export const getLinkedinCertifications = async (identifier: string) => {
+  const profileId = await extractProfileIdLinkedin(identifier);
+
+  if (!profileId) {
+    throw new Error("Profile not found");
+  }
+
+  const response = await fetchData(
+    `graphql?includeWebMetadata=true&variables=(profileUrn:urn%3Ali%3Afsd_profile%3A${profileId},sectionType:certifications,locale:pt_BR)&queryId=voyagerIdentityDashProfileComponents.c5d4db426a0f8247b8ab7bc1d660775a`
+  );
+
+  const included = response?.included || [];
+
+  const componentsCertifications = included
+    .filter(
+      (item: any) =>
+        item?.$type ===
+        "com.linkedin.voyager.dash.identity.profile.tetris.PagedListComponent"
+    )
+    .map((item: any) =>
+      item?.components.elements.map(
+        (item: any) => item?.components.entityComponent || null
+      )
+    )
+    .filter((item: any) => item !== null);
+
+  const parseData = componentsCertifications?.[0] || [];
+
+  return parseData;
+};
