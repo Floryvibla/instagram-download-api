@@ -1,41 +1,37 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { search } from "@/libs/linkedin";
+import { search, searchPeople } from "@/libs/linkedin";
+import { ISearchParams } from "@/libs/linkedin/types";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q");
-    const count = searchParams.get("count");
-    const filters = searchParams.get("filters");
-    const origin = searchParams.get("origin");
-    const start = searchParams.get("start");
+    const field = searchParams.get("field");
+    const offset = searchParams.get("offset");
     const limit = searchParams.get("limit");
 
     if (!query) {
       return NextResponse.json(
-        { error: "Parâmetro q (query) é obrigatório" },
+        { error: "Parâmetro query é obrigatório" },
         { status: 400 }
       );
     }
 
-    const searchParams_obj: any = { q: query };
+    if (field === "people") {
+      const resultsPeople = await searchPeople(query);
 
-    if (count) searchParams_obj.count = count;
-    if (filters) searchParams_obj.filters = filters;
-    if (origin) searchParams_obj.origin = origin;
-    if (start) searchParams_obj.start = parseInt(start);
+      return NextResponse.json(resultsPeople);
+    }
 
-    const options: any = {};
-    if (limit) options.limit = parseInt(limit);
+    const searchParams_obj: ISearchParams = {
+      query,
+      offset: offset ? parseInt(offset) : 0,
+      limit: limit ? parseInt(limit) : 20,
+    };
 
-    const results = await search(searchParams_obj, options);
+    const results = await search(searchParams_obj);
 
-    return NextResponse.json({
-      success: true,
-      data: results,
-      total: results.length,
-    });
+    return NextResponse.json(results);
   } catch (error) {
     console.error("Erro ao realizar busca:", error);
 
