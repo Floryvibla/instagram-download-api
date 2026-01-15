@@ -494,17 +494,27 @@ const LinkedinPlayground = () => {
     { url: string; params: any } | undefined
   >(undefined);
 
-  const endpoints = {
-    account: "/api/linkedin/account",
-    contact: "/api/linkedin/account/contact",
-    company: "/api/linkedin/company",
-    search: "/api/linkedin/search",
-    comments: "/api/linkedin/posts/comments",
-    posts: "", // Deprecated/Removed from UI
-  };
+  const endpoint =
+    mode === "account"
+      ? identifier
+        ? field === "profile"
+          ? `/api/linkedin/account/${identifier}`
+          : `/api/linkedin/account/${identifier}/${field}`
+        : null
+      : mode === "contact"
+      ? identifier
+        ? `/api/linkedin/account/${identifier}/contact`
+        : null
+      : mode === "company"
+      ? "/api/linkedin/company"
+      : mode === "search"
+      ? "/api/linkedin/search"
+      : mode === "comments"
+      ? "/api/linkedin/posts/comments"
+      : null;
 
   const { trigger, data, error, isMutating } = useSWRMutation(
-    endpoints[mode],
+    endpoint,
     fetcher
   );
 
@@ -513,11 +523,10 @@ const LinkedinPlayground = () => {
 
     if (mode === "account") {
       if (!identifier) return;
-      args.identifier = identifier;
-      if (field !== "profile") args.field = field;
+      // Perfil Completo -> /api/linkedin/account/[username]
+      // Demais campos -> /api/linkedin/account/[username]/[field]
     } else if (mode === "contact") {
       if (!identifier) return;
-      args.identifier = identifier;
     } else if (mode === "company") {
       if (!identifier) return;
       args.identifier = identifier;
@@ -530,7 +539,8 @@ const LinkedinPlayground = () => {
       args.url = postUrl;
     }
 
-    setLastRequest({ url: endpoints[mode], params: args });
+    if (!endpoint) return;
+    setLastRequest({ url: endpoint, params: args });
     trigger(args);
   };
 
