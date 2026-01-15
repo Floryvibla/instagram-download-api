@@ -4,6 +4,8 @@
 import { useState, useRef, useEffect } from "react";
 import useSWRMutation from "swr/mutation";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTheme } from "next-themes";
+import dynamic from "next/dynamic";
 import {
   Linkedin,
   Instagram,
@@ -14,12 +16,11 @@ import {
   Check,
   Terminal,
   Info,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import {
-  vscDarkPlus,
-  coy,
-} from "react-syntax-highlighter/dist/esm/styles/prism";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -44,8 +45,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
+// Dynamic import for ReactJson to avoid SSR issues
+const ReactJson = dynamic(() => import("react-json-view"), { ssr: false });
+
 // --- Types ---
-type OperationMode = "account" | "contact" | "company" | "search" | "posts";
+type OperationMode = "account" | "contact" | "company" | "search" | "comments";
 
 interface OperationInfo {
   title: string;
@@ -160,16 +164,29 @@ const LINKEDIN_OPERATIONS: Record<OperationMode, OperationInfo> = {
       ],
     },
   },
-  posts: {
-    title: "Posts Recentes",
+  comments: {
+    title: "Comentários do Post",
     description:
-      "Busca posts recentes (feed). Atualmente retorna uma lista vazia ou placeholders na implementação base.",
-    params: [],
-    exampleRequest: {},
+      "Extrai comentários de um post específico do LinkedIn. Suporta paginação.",
+    params: [
+      {
+        name: "url",
+        type: "string",
+        required: true,
+        description: "URL completa do post",
+      },
+    ],
+    exampleRequest: { url: "https://www.linkedin.com/posts/..." },
     exampleResponse: {
       success: true,
-      data: [],
-      total: 0,
+      data: [
+        {
+          text: "Great post!",
+          author: { name: "Jane Doe" },
+          created_at: "2023-10-27T10:00:00Z",
+        },
+      ],
+      total: 1,
     },
   },
 };
@@ -279,6 +296,50 @@ const RequestPreview = ({
   );
 };
 
+const InteractiveJsonViewer = ({ data }: { data: any }) => {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  // Define colors based on theme but more muted/clean
+  const isDark = theme === "dark";
+
+  // Customizing react-json-view theme to match shadcn/ui
+  // We can pass a theme object
+  const jsonTheme = isDark ? "tomorrow" : "rjv-default";
+
+  // Custom styles for container
+  const style = {
+    padding: "20px",
+    borderRadius: "0.5rem",
+    backgroundColor: "transparent", // Let container handle bg
+    fontSize: "0.85rem",
+    fontFamily: "var(--font-geist-mono), monospace",
+  };
+
+  return (
+    <div className="json-viewer-container">
+      <ReactJson
+        src={data}
+        theme={jsonTheme}
+        style={style}
+        collapsed={2} // Collapse after depth 2 by default
+        enableClipboard={true}
+        displayDataTypes={false}
+        displayObjectSize={true}
+        indentWidth={4}
+        collapseStringsAfterLength={80}
+        name={null} // Don't show root name
+      />
+    </div>
+  );
+};
+
 const ResponseViewer = ({
   data,
   error,
@@ -305,25 +366,27 @@ const ResponseViewer = ({
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Resposta da API
           </span>
-          {isLoading && (
-            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-          )}
-          {!isLoading && data && (
-            <Badge
-              variant="outline"
-              className="text-[10px] bg-green-500/10 text-green-600 border-green-200"
-            >
-              Sucesso
-            </Badge>
-          )}
-          {!isLoading && error && (
-            <Badge
-              variant="outline"
-              className="text-[10px] bg-red-500/10 text-red-600 border-red-200"
-            >
-              Erro
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {isLoading && (
+              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+            )}
+            {!isLoading && data && (
+              <Badge
+                variant="outline"
+                className="text-[10px] bg-green-500/10 text-green-600 border-green-200"
+              >
+                Sucesso
+              </Badge>
+            )}
+            {!isLoading && error && (
+              <Badge
+                variant="outline"
+                className="text-[10px] bg-red-500/10 text-red-600 border-red-200"
+              >
+                Erro
+              </Badge>
+            )}
+          </div>
         </div>
 
         <div className="relative min-h-[200px]">
@@ -339,7 +402,9 @@ const ResponseViewer = ({
               {error.message || JSON.stringify(error, null, 2)}
             </div>
           ) : data ? (
-            <CodeBlock code={JSON.stringify(data, null, 2)} language="json" />
+            <div className="bg-white dark:bg-[#1d1f21] overflow-hidden">
+              <InteractiveJsonViewer data={data} />
+            </div>
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-muted-foreground opacity-50 text-xs">
               Aguardando execução...
@@ -421,6 +486,7 @@ const LinkedinPlayground = () => {
   const [identifier, setIdentifier] = useState("");
   const [field, setField] = useState("profile");
   const [query, setQuery] = useState("");
+  const [postUrl, setPostUrl] = useState("");
   const [lastRequest, setLastRequest] = useState<
     { url: string; params: any } | undefined
   >(undefined);
@@ -430,7 +496,8 @@ const LinkedinPlayground = () => {
     contact: "/api/linkedin/account/contact",
     company: "/api/linkedin/company",
     search: "/api/linkedin/search",
-    posts: "/api/linkedin/posts",
+    comments: "/api/linkedin/posts/comments",
+    posts: "", // Deprecated/Removed from UI
   };
 
   const { trigger, data, error, isMutating } = useSWRMutation(
@@ -455,6 +522,9 @@ const LinkedinPlayground = () => {
       if (!query) return;
       args.q = query;
       args.field = "people";
+    } else if (mode === "comments") {
+      if (!postUrl) return;
+      args.url = postUrl;
     }
 
     setLastRequest({ url: endpoints[mode], params: args });
@@ -485,7 +555,7 @@ const LinkedinPlayground = () => {
                   <SelectItem value="contact">Contato</SelectItem>
                   <SelectItem value="company">Empresa</SelectItem>
                   <SelectItem value="search">Pesquisa</SelectItem>
-                  <SelectItem value="posts">Posts (Feed)</SelectItem>
+                  <SelectItem value="comments">Comentários (Post)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -540,6 +610,18 @@ const LinkedinPlayground = () => {
                       placeholder="ex: Software Engineer at Google"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                    />
+                  </div>
+                )}
+
+                {mode === "comments" && (
+                  <div className="space-y-2">
+                    <Label>URL do Post</Label>
+                    <Input
+                      placeholder="ex: https://www.linkedin.com/posts/..."
+                      value={postUrl}
+                      onChange={(e) => setPostUrl(e.target.value)}
                       onKeyDown={handleKeyDown}
                     />
                   </div>
