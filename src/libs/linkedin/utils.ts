@@ -372,7 +372,7 @@ export function extractExperiences(jsonData: AnyObject): Experience[] {
           // GROUPED ENTRY (company with multiple roles)
           let companyName = "";
           const titleV2 = entity.titleV2;
-          if (typeof titleV2 === "object") {
+          if (titleV2 && typeof titleV2 === "object") {
             const textObj = titleV2.text;
             companyName =
               typeof textObj === "string" ? textObj : textObj?.text ?? "";
@@ -380,7 +380,7 @@ export function extractExperiences(jsonData: AnyObject): Experience[] {
 
           let totalDuration = "";
           const subtitle = entity.subtitle;
-          if (typeof subtitle === "object") {
+          if (subtitle && typeof subtitle === "object") {
             const textObj = subtitle.text;
             totalDuration =
               typeof textObj === "string" ? textObj : textObj?.text ?? "";
@@ -472,7 +472,7 @@ function extractOneExperience(
   let company = companyOverride ?? "";
   if (!company) {
     const subtitle = entity.subtitle;
-    if (typeof subtitle === "object") {
+    if (subtitle && typeof subtitle === "object") {
       company =
         typeof subtitle.text === "string"
           ? subtitle.text
@@ -482,7 +482,7 @@ function extractOneExperience(
 
   let dates = "";
   const caption = entity.caption;
-  if (typeof caption === "object") {
+  if (caption && typeof caption === "object") {
     dates =
       typeof caption.text === "string"
         ? caption.text
@@ -491,7 +491,7 @@ function extractOneExperience(
 
   let location = "";
   const metadata = entity.metadata;
-  if (typeof metadata === "object") {
+  if (metadata && typeof metadata === "object") {
     location =
       typeof metadata.text === "string"
         ? metadata.text
