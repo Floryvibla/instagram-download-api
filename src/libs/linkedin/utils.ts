@@ -249,6 +249,20 @@ interface Experience {
   duration?: string | null;
 }
 
+export const getDataIncludedForEntity = (
+  jsonData: AnyObject,
+  entityUrn: string
+) => {
+  const data = jsonData?.included;
+  if (data.length) {
+    const dataEntityUrn = data.find((item: any) =>
+      item.entityUrn.toLowerCase().includes(entityUrn.toLowerCase())
+    );
+    return dataEntityUrn;
+  }
+  return [];
+};
+
 export function extractExperiences(jsonData: AnyObject): Experience[] {
   const experiences: Experience[] = [];
 

@@ -6,6 +6,7 @@ import {
   extractExperiences,
   extractFields,
   extractFieldsFromIncluded,
+  getDataIncludedForEntity,
   getNestedValue,
   mergeExtraFields,
 } from "./utils";
@@ -33,6 +34,26 @@ export const extractProfileIdLinkedin = async (profileUrl: string) => {
   return null;
 };
 
+export const getProfileSectionAbout = async (identifier: string) => {
+  const profileId = await extractProfileIdLinkedin(identifier);
+
+  const response = await fetchData(
+    `graphql?variables=(profileUrn:urn%3Ali%3Afsd_profile%3A${profileId})&queryId=voyagerIdentityDashProfileCards.55af784c21dc8640b500ab5b45937064`
+  );
+
+  const aboutData = getDataIncludedForEntity(response, `about`) as {
+    topComponents: any[];
+  };
+
+  const about = aboutData?.topComponents.find(
+    (item) => item.components?.textComponent !== null
+  );
+
+  const aboutText = about?.components?.textComponent?.text?.text || null;
+
+  return aboutText;
+};
+
 export const getProfile = async (identifier: string) => {
   const response = await fetchData(
     `graphql?variables=(vanityName:${identifier})&queryId=voyagerIdentityDashProfiles.34ead06db82a2cc9a778fac97f69ad6a`
@@ -52,6 +73,7 @@ export const getProfile = async (identifier: string) => {
         profileData?.lastName || ""
       }`,
       headline: getNestedValue(profileData, "headline"),
+      about: (await getProfileSectionAbout(identifier)) || "N/A",
       birthDate: {
         month: profileData?.birthDateOn?.month || null,
         day: profileData?.birthDateOn?.day || null,
