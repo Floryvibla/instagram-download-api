@@ -2,10 +2,12 @@ import { extractProfileIdLinkedin, fetchData } from "@/libs/linkedin";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
-  const profileId = await extractProfileIdLinkedin("florymignon");
+  const { searchParams } = new URL(request.url);
+  const identifier = searchParams.get("identifier") || "florymignon";
+  const profileId = await extractProfileIdLinkedin(identifier);
 
   const response = await fetchData(
-    `graphql?variables=(profileUrn:urn%3Ali%3Afsd_profile%3A${profileId},sectionType:experience,locale:en_US)&queryId=voyagerIdentityDashProfileComponents.c5d4db426a0f8247b8ab7bc1d660775a`
+    `graphql?variables=(vanityName:${identifier})&queryId=voyagerIdentityDashProfiles.34ead06db82a2cc9a778fac97f69ad6a`
   );
 
   return NextResponse.json(response);

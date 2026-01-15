@@ -7,7 +7,7 @@ export async function GET() {
     // Definir credenciais (substitua pelos valores reais)
     automation.setCredentials({
       email: "fmignon243@gmail.com",
-      password: "kinshasardc",
+      password: "jujuba2016",
     });
 
     // Inicializar automação

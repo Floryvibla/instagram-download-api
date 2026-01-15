@@ -23,6 +23,107 @@ const humanDelay = (
   return new Promise((resolve) => setTimeout(resolve, delay));
 };
 
+const LINKEDIN_VERIFICATION_WEBHOOK_URL =
+  "https://n8n.biuma.com.br/webhook/verificacao-linkedin-code";
+
+const PROTECT_ACCOUNT_PHRASES = ["Proteja sua conta", "Protect your account"];
+
+const getLinkedinVerificationCode = async (): Promise<number | null> => {
+  try {
+    const response = await fetch(LINKEDIN_VERIFICATION_WEBHOOK_URL, {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    if (!response.ok) return null;
+
+    const data = (await response.json()) as {
+      output?: { code?: number | null } | null;
+    };
+
+    const code = data?.output?.code ?? null;
+    return typeof code === "number" ? code : null;
+  } catch {
+    return null;
+  }
+};
+
+const findVerificationInputSelector = async (
+  page: Page
+): Promise<string | null> => {
+  const explicitSelectors = [
+    'input[name="pin"]',
+    "#input__email_verification_pin",
+    'input[name="verificationCode"]',
+    'input[name="otp"]',
+    'input[type="tel"]',
+    'input[inputmode="numeric"]',
+  ];
+
+  for (const selector of explicitSelectors) {
+    const el = await page.$(selector);
+    if (el) return selector;
+  }
+
+  const inferred = await page.evaluate(() => {
+    const inputs = Array.from(document.querySelectorAll("input"));
+    const byHint = inputs.find((input) => {
+      const name = (input.getAttribute("name") || "").toLowerCase();
+      const id = (input.getAttribute("id") || "").toLowerCase();
+      const aria = (input.getAttribute("aria-label") || "").toLowerCase();
+      const placeholder = (
+        input.getAttribute("placeholder") || ""
+      ).toLowerCase();
+      const combined = `${name} ${id} ${aria} ${placeholder}`;
+      return (
+        combined.includes("pin") ||
+        combined.includes("code") ||
+        combined.includes("código") ||
+        combined.includes("codigo") ||
+        combined.includes("otp")
+      );
+    }) as HTMLInputElement | undefined;
+
+    const candidate = byHint ?? (inputs[0] as HTMLInputElement | undefined);
+    if (!candidate) return null;
+
+    if (!candidate.id) candidate.id = "linkedin-verification-code-input";
+    return `#${candidate.id}`;
+  });
+
+  return inferred;
+};
+
+const submitVerificationCode = async (
+  page: Page,
+  code: number
+): Promise<void> => {
+  const selector = await findVerificationInputSelector(page);
+  if (!selector) return;
+
+  const codeStr = String(code);
+  await page.focus(selector);
+  await page.click(selector, { clickCount: 3 });
+  await page.keyboard.press("Backspace");
+  await page.type(selector, codeStr, { delay: 80 });
+
+  const submitSelectors = [
+    'button[type="submit"]',
+    'button[aria-label*="Verificar"]',
+    'button[aria-label*="Verify"]',
+  ];
+
+  for (const s of submitSelectors) {
+    const btn = await page.$(s);
+    if (btn) {
+      await btn.click();
+      return;
+    }
+  }
+
+  await page.keyboard.press("Enter");
+};
+
 // Função para carregar cookies salvos (usando a nova função)
 export const loadCookies = async (): Promise<Cookie[] | null> => {
   try {
@@ -175,18 +276,45 @@ const performLogin = async (
     const isLoggedIn =
       currentUrl.includes("/feed/") ||
       currentUrl.includes("/in/") ||
-      currentUrl === LINKEDIN_URLS.HOME ||
-      !currentUrl.includes("/login");
+      currentUrl === LINKEDIN_URLS.HOME;
 
     if (isLoggedIn) {
       console.log("✅ Login realizado com sucesso!");
       await saveCookies(page, browser);
       return true;
-    } else {
-      console.log("❌ Falha no login - não foi redirecionado para o feed");
-      console.log("URL atual:", currentUrl);
-      return false;
     }
+
+    const isProtectAccount = await page.evaluate((phrases) => {
+      const text = document.body?.innerText || "";
+      return phrases.some((phrase) => text.includes(phrase));
+    }, PROTECT_ACCOUNT_PHRASES);
+
+    if (isProtectAccount) {
+      const verificationCode = await getLinkedinVerificationCode();
+      if (!verificationCode) {
+        console.log("⚠️ Código de verificação não disponível. Encerrando.");
+        return false;
+      }
+
+      await submitVerificationCode(page, verificationCode);
+      await humanDelay(2000, 3000);
+
+      const urlAfterVerification = page.url();
+      const isLoggedInAfterVerification =
+        urlAfterVerification.includes("/feed/") ||
+        urlAfterVerification.includes("/in/") ||
+        urlAfterVerification === LINKEDIN_URLS.HOME;
+
+      if (isLoggedInAfterVerification) {
+        console.log("✅ Verificação concluída e login realizado!");
+        await saveCookies(page, browser);
+        return true;
+      }
+    }
+
+    console.log("❌ Falha no login - não foi redirecionado para o feed");
+    console.log("URL atual:", currentUrl);
+    return false;
   } catch (error) {
     console.log("❌ Erro durante o login:", error);
     return false;

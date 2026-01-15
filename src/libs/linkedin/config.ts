@@ -11,7 +11,7 @@ export const AUTH_BASE_URL = "https://www.linkedin.com";
 
 export const LINKEDIN_CREDS = {
   email: "fmignon243@gmail.com",
-  password: "kinshasardc",
+  password: "jujuba2016",
 };
 
 // Interface para os cookies completos (formato Puppeteer)
@@ -153,7 +153,8 @@ export const fetchData = async (endpoint: string): Promise<any> => {
       error.response?.status === 401 ||
       error.response?.status === 403 ||
       error.code === "ERR_FR_TOO_MANY_REDIRECTS" ||
-      error.message === "Maximum number of redirects exceeded"
+      error.message === "Maximum number of redirects exceeded" ||
+      error.message === "Nenhum cookie válido fornecido"
     ) {
       console.log("🔄 Tentando fazer login novamente...");
       await LoginLinkedin();
