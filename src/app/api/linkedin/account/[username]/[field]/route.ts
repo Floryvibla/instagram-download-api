@@ -22,7 +22,7 @@ export async function GET(
       return NextResponse.json(await getProfissionalExperiences(username));
     case "company":
       return NextResponse.json(await getCompany(username));
-    case "profile":
+    case "miniProfile":
       return NextResponse.json(await getProfile(username));
     case "skills":
       return NextResponse.json(await getLinkedinSkills(username));

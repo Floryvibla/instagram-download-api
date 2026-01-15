@@ -606,6 +606,7 @@ const LinkedinPlayground = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="profile">Perfil Completo</SelectItem>
+                        <SelectItem value="miniProfile">Mini Perfil</SelectItem>
                         <SelectItem value="experiences">
                           Experiências
                         </SelectItem>
