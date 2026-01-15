@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getCompany } from "./company";
 import { fetchData } from "./config";
 import {
   extractDataWithReferences,
@@ -92,7 +93,20 @@ export const getProfissionalExperiences = async (identifier: string) => {
     `graphql?variables=(profileUrn:urn%3Ali%3Afsd_profile%3A${profileId},sectionType:experience,locale:en_US)&queryId=voyagerIdentityDashProfileComponents.c5d4db426a0f8247b8ab7bc1d660775a`
   );
 
-  return extractExperiences(response);
+  const experiencesData = Promise.all(
+    extractExperiences(response).map(async (item) => {
+      const company = await getCompany(item.idCompany || "");
+      if (item.idCompany) {
+        delete (item as any).idCompany;
+      }
+      return {
+        ...item,
+        company,
+      };
+    })
+  );
+
+  return experiencesData;
 };
 
 export const getContactInfo = async (identifier: string) => {

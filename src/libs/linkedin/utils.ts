@@ -239,13 +239,14 @@ export function mergeExtraFields(
 type AnyObject = Record<string, any>;
 
 interface Experience {
-  role: string;
-  company: string;
-  time_duration?: string;
-  location?: string;
-  description?: string;
-  time_period?: string;
-  duration?: string;
+  role: string | null;
+  idCompany: string | null;
+  company: string | null;
+  time_duration?: string | null;
+  location?: string | null;
+  description?: string | null;
+  time_period?: string | null;
+  duration?: string | null;
 }
 
 export function extractExperiences(jsonData: AnyObject): Experience[] {
@@ -467,6 +468,8 @@ function extractOneExperience(
   };
 
   const title = safeGetText(entity, "titleV2", "text", "text");
+  const idCompany =
+    safeGetText(entity, "textActionTarget")?.match(/\/(\d+)\/?$/)?.[1] || null;
   if (!title) return null;
 
   let company = companyOverride ?? "";
@@ -526,10 +529,11 @@ function extractOneExperience(
 
   const result: Experience = {
     role: title,
-    company: company || "N/A",
+    idCompany,
+    company: company || null,
     time_duration: dates || "",
     location: location || "",
-    description: description || "N/A",
+    description: description || null,
   };
 
   if (dates.includes("·")) {
@@ -538,6 +542,6 @@ function extractOneExperience(
     if (parts[1]) result.duration = parts[1].trim();
   }
 
-  console.info(`[PROFILE] ✓ ${title} at ${company || "N/A"}`);
+  console.info(`[PROFILE] ✓ ${title} at ${company || null}`);
   return result;
 }
