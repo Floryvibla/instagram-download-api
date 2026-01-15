@@ -49,12 +49,12 @@ export async function GET(
     : null;
 
   return NextResponse.json({
-    contact,
-    experiences,
-    company,
     profile,
-    skills,
+    contact,
+    company,
+    experiences,
     education,
+    skills,
     certifications,
   });
 }
