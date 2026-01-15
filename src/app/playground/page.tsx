@@ -323,18 +323,21 @@ const InteractiveJsonViewer = ({ data }: { data: any }) => {
   };
 
   return (
-    <div className="json-viewer-container">
+    <div className="json-viewer-container [&_.string-value]:cursor-pointer [&_.string-value:hover]:underline">
       <ReactJson
         src={data}
         theme={jsonTheme}
         style={style}
-        collapsed={2} // Collapse after depth 2 by default
+        collapsed={false} // Expand by default
         enableClipboard={true}
         displayDataTypes={false}
         displayObjectSize={true}
         indentWidth={4}
         collapseStringsAfterLength={80}
         name={null} // Don't show root name
+        onEdit={false}
+        onAdd={false}
+        onDelete={false}
       />
     </div>
   );
