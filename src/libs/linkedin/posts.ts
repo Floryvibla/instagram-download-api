@@ -1,5 +1,26 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { extractProfileIdLinkedin } from "./account";
 import { fetchData } from "./config";
 import { extractFields } from "./utils";
+
+export const parseResponsePostLinkedin = (
+  response: any,
+  key: string,
+  accumulatedData: any
+) => {
+  const elements = response.data?.data?.[key]?.["*elements"] as string[];
+
+  const data =
+    response.included?.filter((item: unknown) =>
+      elements.includes((item as unknown as { entityUrn: string }).entityUrn)
+    ) || [];
+
+  if (!elements || elements.length === 0) {
+    return accumulatedData;
+  }
+
+  return data;
+};
 
 export const getCommentsByPostUrl = async (
   url: string,
@@ -69,4 +90,68 @@ export const getCommentsByPostUrl = async (
 
 export const getPosts = async () => {
   return [];
+};
+
+export const getUserPosts = async ({
+  identifier,
+  start = 0,
+  count = 50,
+  accumulatedPosts = [],
+}: {
+  identifier: string;
+  start?: number;
+  count?: number;
+  accumulatedPosts?: unknown[];
+}) => {
+  const profileId = await extractProfileIdLinkedin(identifier);
+  const response = await fetchData(
+    `graphql?variables=(profileUrn:urn%3Ali%3Afsd_profile%3A${profileId},count:${count},start:${start})&queryId=voyagerFeedDashProfileUpdates.4af00b28d60ed0f1488018948daad822`
+  );
+
+  const data = parseResponsePostLinkedin(
+    response,
+    "feedDashProfileUpdatesByMemberShareFeed",
+    accumulatedPosts
+  );
+
+  const socialActivityData = response.included.filter(
+    (item: any) =>
+      item?.$type === "com.linkedin.voyager.dash.feed.SocialActivityCounts"
+  );
+
+  const fieldsMap = {
+    urn: "metadata.backendUrn",
+    postUrl: "socialContent.shareUrl",
+    contentText: "commentary.text.text",
+    tags: "commentary.text.attributesV2",
+    media: "content",
+    dateDescription: "actor.subDescription.text",
+  };
+
+  const fieldsSocialActivityCountMap = {
+    numLikes: "numLikes",
+    numComments: "numComments",
+    reactionCounts: "reactionTypeCounts",
+    numShares: "numShares",
+    urn: "urn",
+  };
+
+  const extractPosts = extractFields(data, fieldsMap);
+  const extractSocialActivityCount = extractFields(
+    socialActivityData,
+    fieldsSocialActivityCountMap
+  );
+
+  const parsePosts = extractPosts.map((post) => {
+    const socialActivity =
+      extractSocialActivityCount.find((item) => item.urn === post.urn) || {};
+    if (socialActivity) {
+      return { ...post, ...socialActivity };
+    }
+  });
+
+  // const thumbnails = response.included.filter(
+  //   (item: any) => item?.thumbnail !== null
+  // );
+  return parsePosts;
 };

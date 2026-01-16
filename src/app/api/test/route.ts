@@ -2,17 +2,18 @@ import {
   extractProfileIdLinkedin,
   fetchData,
   getDataIncludedForEntity,
-  getProfileSectionAbout,
+  getUserPosts,
 } from "@/libs/linkedin";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const identifier = searchParams.get("identifier") || "florymignon";
+  const identifier = searchParams.get("identifier") || "rodrigovencefy";
+  const profileId = await extractProfileIdLinkedin(identifier);
 
-  const response = await getProfileSectionAbout(identifier);
-
-  return NextResponse.json({
-    response,
+  const response = await getUserPosts({
+    identifier,
   });
+
+  return NextResponse.json(response);
 }
