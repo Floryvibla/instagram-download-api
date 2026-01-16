@@ -32,9 +32,7 @@ export async function GET(
     case "certifications":
       return NextResponse.json(await getLinkedinCertifications(username));
     case "posts":
-      return NextResponse.json(
-        await getUserPosts({ identifier: username, count: 200 })
-      );
+      return NextResponse.json(await getUserPosts({ identifier: username }));
     default:
       return NextResponse.json({ msg: "Field not found" });
   }
