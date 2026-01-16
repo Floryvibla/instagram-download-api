@@ -6,6 +6,7 @@ import {
   getLinkedinSkills,
   getProfile,
   getProfissionalExperiences,
+  getUserPosts,
 } from "@/libs/linkedin";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -30,6 +31,10 @@ export async function GET(
       return NextResponse.json(await getLinkedinEducation(username));
     case "certifications":
       return NextResponse.json(await getLinkedinCertifications(username));
+    case "posts":
+      return NextResponse.json(
+        await getUserPosts({ identifier: username, count: 200 })
+      );
     default:
       return NextResponse.json({ msg: "Field not found" });
   }

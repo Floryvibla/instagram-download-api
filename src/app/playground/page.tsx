@@ -612,6 +612,7 @@ const LinkedinPlayground = () => {
                         </SelectItem>
                         <SelectItem value="skills">Habilidades</SelectItem>
                         <SelectItem value="education">Educação</SelectItem>
+                        <SelectItem value="posts">Postagens</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
