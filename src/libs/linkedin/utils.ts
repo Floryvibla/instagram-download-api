@@ -36,9 +36,9 @@ export function getNestedValue(obj: any, path: string): any {
 // Nova função melhorada para filtrar com caminhos aninhados
 export function extractFields(
   data: any[],
-  fieldsMap: Record<string, string>
+  fieldsMap: Record<string, string>,
 ): any[] {
-  return data.map((item) => {
+  return data?.map((item) => {
     const extracted: any = {};
 
     Object.entries(fieldsMap).forEach(([newKey, path]) => {
@@ -56,7 +56,7 @@ export function extractFields(
 export function debugObjectStructure(
   obj: any,
   maxDepth: number = 3,
-  currentDepth: number = 0
+  currentDepth: number = 0,
 ): void {
   if (currentDepth >= maxDepth) return;
 
@@ -80,8 +80,8 @@ export function debugObjectStructure(
           console.log(
             `${indent}${key}: ${typeof value} = ${String(value).slice(
               0,
-              50
-            )}...`
+              50,
+            )}...`,
           );
         }
       });
@@ -159,16 +159,16 @@ export function resolveReferences(data: any, included: any[]): any {
 export function extractDataWithReferences(
   elements: string[],
   included: any[],
-  fieldsMap?: Record<string, string>
+  fieldsMap?: Record<string, string>,
 ): any[] {
   // Filtrar dados pelos elementos
   const filteredData = included.filter((item) =>
-    elements.includes(item.entityUrn)
+    elements.includes(item.entityUrn),
   );
 
   // Resolver todas as referências
   const resolvedData = filteredData.map((item) =>
-    resolveReferences(item, included)
+    resolveReferences(item, included),
   );
 
   // Se há mapeamento de campos, aplicar
@@ -183,7 +183,7 @@ export function extractDataWithReferences(
 export function debugResolvedStructure(
   elements: string[],
   included: any[],
-  maxDepth: number = 2
+  maxDepth: number = 2,
 ): void {
   console.log("🔍 Estrutura dos dados com referências resolvidas:");
   const resolved = extractDataWithReferences(elements, included);
@@ -198,7 +198,7 @@ export function debugResolvedStructure(
 // Função para extrair campos específicos de todos os objetos no included
 export function extractFieldsFromIncluded(
   included: any[],
-  fields: string[]
+  fields: string[],
 ): Record<string, any>[] {
   return included
     .filter((item) => fields.some((field) => item[field] !== undefined))
@@ -219,11 +219,11 @@ export function extractFieldsFromIncluded(
 export function mergeExtraFields(
   mainData: any[],
   extraData: Record<string, any>[],
-  matchKey: string = "companyUrn"
+  matchKey: string = "companyUrn",
 ): any[] {
   return mainData.map((item) => {
     const extraItem = extraData.find(
-      (extra) => item[matchKey] && extra.entityUrn === item[matchKey]
+      (extra) => item[matchKey] && extra.entityUrn === item[matchKey],
     );
 
     if (extraItem) {
@@ -251,12 +251,12 @@ interface Experience {
 
 export const getDataIncludedForEntity = (
   jsonData: AnyObject,
-  entityUrn: string
+  entityUrn: string,
 ) => {
   const data = jsonData?.included;
   if (data.length) {
     const dataEntityUrn = data.find((item: any) =>
-      item.entityUrn.toLowerCase().includes(entityUrn.toLowerCase())
+      item.entityUrn.toLowerCase().includes(entityUrn.toLowerCase()),
     );
     return dataEntityUrn;
   }
@@ -275,7 +275,7 @@ export function extractExperiences(jsonData: AnyObject): Experience[] {
 
     // ===== PASS 1: Build component map by URN =====
     console.info(
-      `[PROFILE] Pass 1: Building component map from ${included.length} items`
+      `[PROFILE] Pass 1: Building component map from ${included.length} items`,
     );
     const componentMap: Record<string, AnyObject> = {};
     for (const item of included) {
@@ -286,7 +286,7 @@ export function extractExperiences(jsonData: AnyObject): Experience[] {
     console.info(
       `[PROFILE] Pass 1: Indexed ${
         Object.keys(componentMap).length
-      } components by URN`
+      } components by URN`,
     );
 
     // ===== PASS 2: Find anchor and traverse =====
@@ -310,7 +310,7 @@ export function extractExperiences(jsonData: AnyObject): Experience[] {
     const mainList = componentMap[mainExperienceUrn];
     if (!mainList) {
       console.error(
-        "[PROFILE] Pass 2: Anchor URN not in map (shouldn't happen)"
+        "[PROFILE] Pass 2: Anchor URN not in map (shouldn't happen)",
       );
       return experiences;
     }
@@ -319,14 +319,14 @@ export function extractExperiences(jsonData: AnyObject): Experience[] {
       mainList.elements ?? mainList.components?.elements ?? [];
 
     console.info(
-      `[PROFILE] Pass 2: Found ${elements.length} experience blocks`
+      `[PROFILE] Pass 2: Found ${elements.length} experience blocks`,
     );
 
     const paging = mainList.paging ?? mainList.components?.paging;
     if (paging) {
       const { total = "unknown", count = "unknown", start = 0 } = paging;
       console.warn(
-        `[PROFILE] PAGINATION: ${count} of ${total} experiences (start: ${start})`
+        `[PROFILE] PAGINATION: ${count} of ${total} experiences (start: ${start})`,
       );
     }
 
@@ -361,7 +361,7 @@ export function extractExperiences(jsonData: AnyObject): Experience[] {
                   nestedUrn =
                     typeof value === "string"
                       ? value
-                      : value?.entityUrn ?? null;
+                      : (value?.entityUrn ?? null);
                   if (nestedUrn) break;
                 }
               }
@@ -374,7 +374,7 @@ export function extractExperiences(jsonData: AnyObject): Experience[] {
                     nestedUrn =
                       typeof value === "string"
                         ? value
-                        : (value as any)?.entityUrn ?? null;
+                        : ((value as any)?.entityUrn ?? null);
                     if (nestedUrn) break;
                   }
                 }
@@ -390,7 +390,7 @@ export function extractExperiences(jsonData: AnyObject): Experience[] {
           if (titleV2 && typeof titleV2 === "object") {
             const textObj = titleV2.text;
             companyName =
-              typeof textObj === "string" ? textObj : textObj?.text ?? "";
+              typeof textObj === "string" ? textObj : (textObj?.text ?? "");
           }
 
           let totalDuration = "";
@@ -398,11 +398,11 @@ export function extractExperiences(jsonData: AnyObject): Experience[] {
           if (subtitle && typeof subtitle === "object") {
             const textObj = subtitle.text;
             totalDuration =
-              typeof textObj === "string" ? textObj : textObj?.text ?? "";
+              typeof textObj === "string" ? textObj : (textObj?.text ?? "");
           }
 
           console.info(
-            `[PROFILE] Element ${idx}: Grouped company '${companyName}' (${totalDuration})`
+            `[PROFILE] Element ${idx}: Grouped company '${companyName}' (${totalDuration})`,
           );
 
           const nestedList = componentMap[nestedUrn];
@@ -411,7 +411,7 @@ export function extractExperiences(jsonData: AnyObject): Experience[] {
               nestedList.elements ?? nestedList.components?.elements ?? [];
 
             console.info(
-              `[PROFILE] Found ${nestedElements.length} roles for '${companyName}'`
+              `[PROFILE] Found ${nestedElements.length} roles for '${companyName}'`,
             );
 
             for (const [roleIdx, roleElem] of nestedElements.entries()) {
@@ -422,7 +422,7 @@ export function extractExperiences(jsonData: AnyObject): Experience[] {
                   console.debug(
                     `[PROFILE] Extracted role ${roleIdx + 1}/${
                       nestedElements.length
-                    }: ${exp.role} at ${companyName}`
+                    }: ${exp.role} at ${companyName}`,
                   );
                   experiences.push(exp);
                 }
@@ -442,7 +442,7 @@ export function extractExperiences(jsonData: AnyObject): Experience[] {
 
         if (titleV2 && !caption) {
           console.warn(
-            `[PROFILE] Element ${idx}: Skipping potential parent block`
+            `[PROFILE] Element ${idx}: Skipping potential parent block`,
           );
           return;
         }
@@ -455,7 +455,7 @@ export function extractExperiences(jsonData: AnyObject): Experience[] {
     });
 
     console.info(
-      `[PROFILE] Successfully extracted ${experiences.length} total experiences`
+      `[PROFILE] Successfully extracted ${experiences.length} total experiences`,
     );
   } catch (err: any) {
     console.error(`[PROFILE] Fatal error: ${err.message}`);
@@ -467,7 +467,7 @@ export function extractExperiences(jsonData: AnyObject): Experience[] {
 // Helper function
 function extractOneExperience(
   entity: AnyObject,
-  companyOverride?: string
+  companyOverride?: string,
 ): Experience | null {
   if (!entity || typeof entity !== "object") return null;
 
@@ -478,7 +478,7 @@ function extractOneExperience(
       current = current[key];
       if (current === undefined || current === null) return "";
     }
-    return typeof current === "string" ? current : current?.text ?? "";
+    return typeof current === "string" ? current : (current?.text ?? "");
   };
 
   const title = safeGetText(entity, "titleV2", "text", "text");
@@ -493,7 +493,7 @@ function extractOneExperience(
       company =
         typeof subtitle.text === "string"
           ? subtitle.text
-          : subtitle.text?.text ?? "";
+          : (subtitle.text?.text ?? "");
     }
   }
 
@@ -503,7 +503,7 @@ function extractOneExperience(
     dates =
       typeof caption.text === "string"
         ? caption.text
-        : caption.text?.text ?? "";
+        : (caption.text?.text ?? "");
   }
 
   let location = "";
@@ -512,7 +512,7 @@ function extractOneExperience(
     location =
       typeof metadata.text === "string"
         ? metadata.text
-        : metadata.text?.text ?? "";
+        : (metadata.text?.text ?? "");
   }
 
   let description = "";

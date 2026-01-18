@@ -49,7 +49,13 @@ import { cn } from "@/lib/utils";
 const ReactJson = dynamic(() => import("react-json-view"), { ssr: false });
 
 // --- Types ---
-type OperationMode = "account" | "contact" | "company" | "search" | "comments";
+type OperationMode =
+  | "account"
+  | "contact"
+  | "company"
+  | "search"
+  | "comments"
+  | "post";
 
 interface OperationInfo {
   title: string;
@@ -189,6 +195,67 @@ const LINKEDIN_OPERATIONS: Record<OperationMode, OperationInfo> = {
       total: 1,
     },
   },
+  post: {
+    title: "Postagem",
+    description:
+      "Operações relacionadas a postagens no LinkedIn: detalhes do post, comentários e postagens por usuário.",
+    params: [
+      {
+        name: "field",
+        type: "string",
+        required: true,
+        description: "post | comments | userPosts",
+      },
+      {
+        name: "url",
+        type: "string",
+        required: false,
+        description: "URL completa do post (para post/comments)",
+      },
+      {
+        name: "identifier",
+        type: "string",
+        required: false,
+        description: "Username público ou URN do perfil (para userPosts)",
+      },
+      {
+        name: "count",
+        type: "number",
+        required: false,
+        description: "Quantidade de posts (para userPosts)",
+      },
+      {
+        name: "commentsCount",
+        type: "number",
+        required: false,
+        description: "Quantidade de comentários embutidos (para post)",
+      },
+      {
+        name: "likesCount",
+        type: "number",
+        required: false,
+        description: "Quantidade de likes embutidos (para post)",
+      },
+    ],
+    exampleRequest: {
+      field: "post",
+      url: "https://www.linkedin.com/posts/...",
+      commentsCount: 10,
+      likesCount: 10,
+    },
+    exampleResponse: {
+      success: true,
+      data: {
+        postUrl: "https://www.linkedin.com/feed/update/urn:li:activity:...",
+        contentText: "Conteúdo do post...",
+        actor: {
+          name: "Nome",
+          headline: "Headline",
+          profileUrl: "https://media.licdn.com/...",
+        },
+      },
+    },
+  },
 };
 
 // --- Fetcher for SWR ---
@@ -205,7 +272,7 @@ async function fetcher(url: string, { arg }: { arg: Record<string, any> }) {
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(
-      errorData.message || errorData.error || "Ocorreu um erro na requisição"
+      errorData.message || errorData.error || "Ocorreu um erro na requisição",
     );
   }
   return res.json();
@@ -488,8 +555,12 @@ const LinkedinPlayground = () => {
   const [mode, setMode] = useState<OperationMode>("account");
   const [identifier, setIdentifier] = useState("");
   const [field, setField] = useState("profile");
+  const [postField, setPostField] = useState("post");
   const [query, setQuery] = useState("");
   const [postUrl, setPostUrl] = useState("");
+  const [userPostsCount, setUserPostsCount] = useState("50");
+  const [commentsCount, setCommentsCount] = useState("10");
+  const [likesCount, setLikesCount] = useState("10");
   const [lastRequest, setLastRequest] = useState<
     { url: string; params: any } | undefined
   >(undefined);
@@ -502,20 +573,28 @@ const LinkedinPlayground = () => {
           : `/api/linkedin/account/${identifier}/${field}`
         : null
       : mode === "contact"
-      ? identifier
-        ? `/api/linkedin/account/${identifier}/contact`
-        : null
-      : mode === "company"
-      ? "/api/linkedin/company"
-      : mode === "search"
-      ? "/api/linkedin/search"
-      : mode === "comments"
-      ? "/api/linkedin/posts/comments"
-      : null;
+        ? identifier
+          ? `/api/linkedin/account/${identifier}/contact`
+          : null
+        : mode === "company"
+          ? "/api/linkedin/company"
+          : mode === "search"
+            ? "/api/linkedin/search"
+            : mode === "comments"
+              ? "/api/linkedin/posts/comments"
+              : mode === "post"
+                ? postField === "post"
+                  ? "/api/linkedin/posts/post"
+                  : postField === "comments"
+                    ? "/api/linkedin/posts/comments"
+                    : postField === "userPosts"
+                      ? "/api/linkedin/posts/user"
+                      : null
+                : null;
 
   const { trigger, data, error, isMutating } = useSWRMutation(
     endpoint,
-    fetcher
+    fetcher,
   );
 
   const handleExecute = () => {
@@ -537,6 +616,20 @@ const LinkedinPlayground = () => {
     } else if (mode === "comments") {
       if (!postUrl) return;
       args.url = postUrl;
+    } else if (mode === "post") {
+      if (postField === "userPosts") {
+        if (!identifier) return;
+        args.identifier = identifier;
+        args.count = userPostsCount;
+      } else if (postField === "post") {
+        if (!postUrl) return;
+        args.url = postUrl;
+        args.commentsCount = commentsCount;
+        args.likesCount = likesCount;
+      } else if (postField === "comments") {
+        if (!postUrl) return;
+        args.url = postUrl;
+      }
     }
 
     if (!endpoint) return;
@@ -569,6 +662,7 @@ const LinkedinPlayground = () => {
                   <SelectItem value="company">Empresa</SelectItem>
                   <SelectItem value="search">Pesquisa</SelectItem>
                   <SelectItem value="comments">Comentários (Post)</SelectItem>
+                  <SelectItem value="post">Postagem</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -583,7 +677,8 @@ const LinkedinPlayground = () => {
               >
                 {(mode === "account" ||
                   mode === "contact" ||
-                  mode === "company") && (
+                  mode === "company" ||
+                  (mode === "post" && postField === "userPosts")) && (
                   <div className="space-y-2">
                     <Label>Identificador (Username/URN)</Label>
                     <Input
@@ -618,6 +713,24 @@ const LinkedinPlayground = () => {
                   </div>
                 )}
 
+                {mode === "post" && (
+                  <div className="space-y-2">
+                    <Label>Campo Específico</Label>
+                    <Select value={postField} onValueChange={setPostField}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="post">getPostLinkedin</SelectItem>
+                        <SelectItem value="comments">
+                          getCommentsByPostUrl
+                        </SelectItem>
+                        <SelectItem value="userPosts">getUserPosts</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 {mode === "search" && (
                   <div className="space-y-2">
                     <Label>Termo de Busca</Label>
@@ -639,6 +752,54 @@ const LinkedinPlayground = () => {
                       onChange={(e) => setPostUrl(e.target.value)}
                       onKeyDown={handleKeyDown}
                     />
+                  </div>
+                )}
+
+                {mode === "post" &&
+                  (postField === "post" || postField === "comments") && (
+                    <div className="space-y-2">
+                      <Label>URL do Post</Label>
+                      <Input
+                        placeholder="ex: https://www.linkedin.com/posts/..."
+                        value={postUrl}
+                        onChange={(e) => setPostUrl(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                      />
+                    </div>
+                  )}
+
+                {mode === "post" && postField === "userPosts" && (
+                  <div className="space-y-2">
+                    <Label>Quantidade de Posts</Label>
+                    <Input
+                      placeholder="ex: 50"
+                      value={userPostsCount}
+                      onChange={(e) => setUserPostsCount(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                    />
+                  </div>
+                )}
+
+                {mode === "post" && postField === "post" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>commentsCount</Label>
+                      <Input
+                        placeholder="ex: 10"
+                        value={commentsCount}
+                        onChange={(e) => setCommentsCount(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>likesCount</Label>
+                      <Input
+                        placeholder="ex: 10"
+                        value={likesCount}
+                        onChange={(e) => setLikesCount(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                      />
+                    </div>
                   </div>
                 )}
               </motion.div>
@@ -688,7 +849,7 @@ const InstagramPlayground = () => {
 
   const { trigger, data, error, isMutating } = useSWRMutation(
     "/api/instagram/download",
-    fetcher
+    fetcher,
   );
 
   const handleExecute = () => {
@@ -779,7 +940,7 @@ const InstagramPlayground = () => {
 const BrowserPlayground = () => {
   const { trigger, data, error, isMutating } = useSWRMutation(
     "/api/browser",
-    fetcher
+    fetcher,
   );
 
   return (

@@ -97,7 +97,7 @@ export const getPostLinkedin = async (
   commentsCount: number = 10,
   likesCount: number = 10,
 ) => {
-  const slugPost = url.match(/\/posts\/([^\/?]+)\/\?/)?.[1];
+  const slugPost = url.match(/\/posts\/([^\/?]+)/)?.[1];
 
   const response = await fetchData(
     `/graphql?includeWebMetadata=false&queryId=voyagerFeedDashUpdates.5cf9b25c46b9d86c224647752f7d6bfd&variables=(commentsCount:${commentsCount},likesCount:${likesCount},includeCommentsFirstReply:true,includeReactions:false,moduleKey:feed-item%3Adesktop,slug:${slugPost})`,
@@ -108,15 +108,15 @@ export const getPostLinkedin = async (
     "feedDashUpdatesByPostSlug",
     undefined,
     { actor: "actor" },
-  )[0];
+  )?.[0];
 
   const actor = {
-    name: posts.actor?.name?.text,
-    headline: posts.actor?.description?.text,
+    name: posts?.actor?.name?.text,
+    headline: posts?.actor?.description?.text,
     profileUrl:
-      posts.actor?.image?.attributes?.[0]?.detailData?.nonEntityProfilePicture
+      posts?.actor?.image?.attributes?.[0]?.detailData?.nonEntityProfilePicture
         ?.vectorImage?.rootUrl +
-      posts.actor?.image?.attributes?.[0]?.detailData?.nonEntityProfilePicture?.vectorImage?.artifacts?.at(
+      posts?.actor?.image?.attributes?.[0]?.detailData?.nonEntityProfilePicture?.vectorImage?.artifacts?.at(
         -1,
       )?.fileIdentifyingUrlPathSegment,
   };
@@ -189,7 +189,7 @@ export const helperGetPosts = (
     fieldsSocialActivityCountMap,
   );
 
-  const parsePosts = extractPosts.map((post) => {
+  const parsePosts = extractPosts?.map((post) => {
     const socialActivity =
       extractSocialActivityCount.find((item) => item.urn === post.urn) || {};
     if (socialActivity) {
