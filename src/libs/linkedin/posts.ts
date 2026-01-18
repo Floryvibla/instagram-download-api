@@ -94,14 +94,13 @@ export const getPosts = async () => {
 
 export const getPostLinkedin = async (
   url: string,
-  start: number = 0,
-  limit: number = 50,
-  accumulatedPost: unknown[] = [],
+  commentsCount: number = 10,
+  likesCount: number = 10,
 ) => {
   const slugPost = url.match(/\/posts\/([^\/?]+)\/\?/)?.[1];
 
   const response = await fetchData(
-    `/graphql?includeWebMetadata=false&queryId=voyagerFeedDashUpdates.5cf9b25c46b9d86c224647752f7d6bfd&variables=(commentsCount:10,likesCount:10,includeCommentsFirstReply:true,includeReactions:false,moduleKey:feed-item%3Adesktop,slug:${slugPost})`,
+    `/graphql?includeWebMetadata=false&queryId=voyagerFeedDashUpdates.5cf9b25c46b9d86c224647752f7d6bfd&variables=(commentsCount:${commentsCount},likesCount:${likesCount},includeCommentsFirstReply:true,includeReactions:false,moduleKey:feed-item%3Adesktop,slug:${slugPost})`,
   );
 
   const posts = helperGetPosts(
