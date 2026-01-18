@@ -61,7 +61,7 @@ export const loadAllCookies = async (): Promise<Cookie[] | null> => {
     }
 
     console.log(
-      `${cookieData.cookies.length} cookies carregados de: ${COOKIE_FILE_PATH}`
+      `${cookieData.cookies.length} cookies carregados de: ${COOKIE_FILE_PATH}`,
     );
     return cookieData.cookies;
   } catch (error) {
@@ -72,7 +72,7 @@ export const loadAllCookies = async (): Promise<Cookie[] | null> => {
 
 // Função para extrair cookies específicos para API do LinkedIn
 export const extractApiCookies = (
-  cookies: Cookie[]
+  cookies: Cookie[],
 ): LinkedInApiCookies | null => {
   const jsessionCookie = cookies.find((c) => c.name === "JSESSIONID");
   const liAtCookie = cookies.find((c) => c.name === "li_at");
@@ -96,7 +96,8 @@ export const extractApiCookies = (
 
 // Função para criar cliente com cookies automáticos
 export const Client = async (
-  providedCookies?: LinkedInApiCookies
+  providedCookies?: LinkedInApiCookies,
+  baseURL?: string,
 ): Promise<ReturnType<typeof api>> => {
   let cookiesToUse: LinkedInApiCookies;
   const savedCookies = await loadAllCookies();
@@ -120,12 +121,21 @@ export const Client = async (
   return api({
     JSESSIONID: parseInt(cookiesToUse.JSESSIONID),
     li_at: cookiesToUse.li_at,
+    baseURL: baseURL || API_BASE_URL,
   });
 };
 
-const api = ({ JSESSIONID, li_at }: { li_at: string; JSESSIONID: number }) => {
+const api = ({
+  JSESSIONID,
+  li_at,
+  baseURL = API_BASE_URL,
+}: {
+  li_at: string;
+  JSESSIONID: number;
+  baseURL?: string;
+}) => {
   return axios.create({
-    baseURL: API_BASE_URL,
+    baseURL,
     maxRedirects: 3, // Limitar redirecionamentos a 3
     timeout: 10000, // Timeout de 10 segundos
     headers: {

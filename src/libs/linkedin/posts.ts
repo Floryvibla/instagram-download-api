@@ -6,13 +6,13 @@ import { extractFields } from "./utils";
 export const parseResponsePostLinkedin = (
   response: any,
   key: string,
-  accumulatedData: any
+  accumulatedData: any,
 ) => {
   const elements = response.data?.data?.[key]?.["*elements"] as string[];
 
   const data =
     response.included?.filter((item: unknown) =>
-      elements.includes((item as unknown as { entityUrn: string }).entityUrn)
+      elements.includes((item as unknown as { entityUrn: string }).entityUrn),
     ) || [];
 
   if (!elements || elements.length === 0) {
@@ -26,12 +26,12 @@ export const getCommentsByPostUrl = async (
   url: string,
   start: number = 0,
   limit: number = 50,
-  accumulatedComments: unknown[] = []
+  accumulatedComments: unknown[] = [],
 ): Promise<unknown[]> => {
   const postID = url.match(/activity-(\d+)/)?.[1];
 
   const response = await fetchData(
-    `/graphql?includeWebMetadata=false&queryId=voyagerSocialDashComments.95ed44bc87596acce7c460c70934d0ff&variables=(count:${limit},start:${start},numReplies:1,socialDetailUrn:urn%3Ali%3Afsd_socialDetail%3A%28urn%3Ali%3Aactivity%${postID}%2Curn%3Ali%3Aactivity%3A${postID}%2Curn%3Ali%3AhighlightedReply%3A-%29,sortOrder:RELEVANCE)`
+    `/graphql?includeWebMetadata=false&queryId=voyagerSocialDashComments.95ed44bc87596acce7c460c70934d0ff&variables=(count:${limit},start:${start},numReplies:1,socialDetailUrn:urn%3Ali%3Afsd_socialDetail%3A%28urn%3Ali%3Aactivity%${postID}%2Curn%3Ali%3Aactivity%3A${postID}%2Curn%3Ali%3AhighlightedReply%3A-%29,sortOrder:RELEVANCE)`,
   );
 
   const elements = response.data?.data?.socialDashCommentsBySocialDetail?.[
@@ -45,7 +45,7 @@ export const getCommentsByPostUrl = async (
 
   const data =
     response.included?.filter((item: unknown) =>
-      elements.includes((item as unknown as { entityUrn: string }).entityUrn)
+      elements.includes((item as unknown as { entityUrn: string }).entityUrn),
     ) || [];
 
   // Mapeamento melhorado dos campos
@@ -80,7 +80,7 @@ export const getCommentsByPostUrl = async (
       url,
       start + elements.length,
       limit,
-      allComments
+      allComments,
     );
   }
 
@@ -90,6 +90,42 @@ export const getCommentsByPostUrl = async (
 
 export const getPosts = async () => {
   return [];
+};
+
+export const getPostLinkedin = async (
+  url: string,
+  start: number = 0,
+  limit: number = 50,
+  accumulatedPost: unknown[] = [],
+) => {
+  const slugPost = url.match(/\/posts\/([^\/?]+)\/\?/)?.[1];
+
+  const response = await fetchData(
+    `/graphql?includeWebMetadata=false&queryId=voyagerFeedDashUpdates.5cf9b25c46b9d86c224647752f7d6bfd&variables=(commentsCount:10,likesCount:10,includeCommentsFirstReply:true,includeReactions:false,moduleKey:feed-item%3Adesktop,slug:${slugPost})`,
+  );
+
+  const posts = helperGetPosts(
+    response,
+    "feedDashUpdatesByPostSlug",
+    undefined,
+    { actor: "actor" },
+  )[0];
+
+  const actor = {
+    name: posts.actor?.name?.text,
+    headline: posts.actor?.description?.text,
+    profileUrl:
+      posts.actor?.image?.attributes?.[0]?.detailData?.nonEntityProfilePicture
+        ?.vectorImage?.rootUrl +
+      posts.actor?.image?.attributes?.[0]?.detailData?.nonEntityProfilePicture?.vectorImage?.artifacts?.at(
+        -1,
+      )?.fileIdentifyingUrlPathSegment,
+  };
+
+  return {
+    ...posts,
+    actor,
+  };
 };
 
 export const getUserPosts = async ({
@@ -105,18 +141,29 @@ export const getUserPosts = async ({
 }) => {
   const profileId = await extractProfileIdLinkedin(identifier);
   const response = await fetchData(
-    `graphql?variables=(profileUrn:urn%3Ali%3Afsd_profile%3A${profileId},count:${count},start:${start})&queryId=voyagerFeedDashProfileUpdates.4af00b28d60ed0f1488018948daad822`
+    `graphql?variables=(profileUrn:urn%3Ali%3Afsd_profile%3A${profileId},count:${count},start:${start})&queryId=voyagerFeedDashProfileUpdates.4af00b28d60ed0f1488018948daad822`,
   );
 
-  const data = parseResponsePostLinkedin(
+  const parsePosts = helperGetPosts(
     response,
     "feedDashProfileUpdatesByMemberShareFeed",
-    accumulatedPosts
+    accumulatedPosts,
   );
+
+  return parsePosts;
+};
+
+export const helperGetPosts = (
+  response: any,
+  key: string,
+  accumulatedPosts?: any,
+  addFields?: Record<string, string>,
+) => {
+  const data = parseResponsePostLinkedin(response, key, accumulatedPosts);
 
   const socialActivityData = response.included.filter(
     (item: any) =>
-      item?.$type === "com.linkedin.voyager.dash.feed.SocialActivityCounts"
+      item?.$type === "com.linkedin.voyager.dash.feed.SocialActivityCounts",
   );
 
   const fieldsMap = {
@@ -126,6 +173,7 @@ export const getUserPosts = async ({
     tags: "commentary.text.attributesV2",
     media: "content",
     dateDescription: "actor.subDescription.text",
+    ...addFields,
   };
 
   const fieldsSocialActivityCountMap = {
@@ -139,19 +187,47 @@ export const getUserPosts = async ({
   const extractPosts = extractFields(data, fieldsMap);
   const extractSocialActivityCount = extractFields(
     socialActivityData,
-    fieldsSocialActivityCountMap
+    fieldsSocialActivityCountMap,
   );
 
   const parsePosts = extractPosts.map((post) => {
     const socialActivity =
       extractSocialActivityCount.find((item) => item.urn === post.urn) || {};
     if (socialActivity) {
-      return { ...post, ...socialActivity };
+      const mediaNonNullKeys = Object.fromEntries(
+        Object.entries(post.media).filter(([_, value]) => value !== null),
+      ) as any;
+
+      let media = mediaNonNullKeys;
+
+      if (mediaNonNullKeys?.imageComponent) {
+        media = {
+          images: mediaNonNullKeys?.imageComponent?.images?.map((item: any) =>
+            helperGetImageUrl(item),
+          ),
+        };
+      }
+
+      return { ...post, media, ...socialActivity };
     }
   });
 
-  // const thumbnails = response.included.filter(
-  //   (item: any) => item?.thumbnail !== null
-  // );
   return parsePosts;
+};
+
+export const helperGetImageUrl = (item: any) => {
+  const keyEntity = item?.attributes?.[0]?.detailData?.nonEntityProfilePicture
+    ? "nonEntityProfilePicture"
+    : "vectorImage";
+
+  const itemImage = item?.attributes?.[0]?.detailData?.[keyEntity];
+
+  const biggestWidth = itemImage?.artifacts?.reduce(
+    (max: any, current: any) => {
+      return current.width > max.width ? current : max;
+    },
+    itemImage?.artifacts?.[0],
+  );
+
+  return itemImage?.rootUrl + biggestWidth?.fileIdentifyingUrlPathSegment;
 };
