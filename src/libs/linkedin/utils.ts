@@ -1,23 +1,41 @@
 /* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export function filterKeys(obj: any, keysToKeep: string[]) {
-  const filteredObject: any = {};
-  keysToKeep.forEach((key) => {
-    if (obj.hasOwnProperty(key)) {
-      filteredObject[key] = obj[key];
+export function filterKeys(
+  data: Record<string, any> | Record<string, any>[],
+  keysToKeep: readonly string[],
+): Record<string, any> | Record<string, any>[] {
+  const filterOne = (obj: Record<string, any>): Record<string, any> => {
+    const filteredObject: Record<string, any> = {};
+    for (const key of keysToKeep) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        filteredObject[key] = obj[key];
+      }
     }
-  });
-  return filteredObject;
+    return filteredObject;
+  };
+
+  if (Array.isArray(data)) return data.map(filterOne);
+  return filterOne(data);
 }
 
-export function filterOutKeys(obj: any, keysToIgnore: string[]) {
-  const filteredObject: any = {};
-  Object.keys(obj).forEach((key) => {
-    if (!keysToIgnore.includes(key)) {
-      filteredObject[key] = obj[key];
+export function filterOutKeys(
+  data: Record<string, any> | Record<string, any>[],
+  keysToIgnore: readonly string[],
+): Record<string, any> | Record<string, any>[] {
+  const ignoreSet = new Set(keysToIgnore);
+
+  const filterOne = (obj: Record<string, any>): Record<string, any> => {
+    const filteredObject: Record<string, any> = {};
+    for (const key of Object.keys(obj)) {
+      if (!ignoreSet.has(key)) {
+        filteredObject[key] = obj[key];
+      }
     }
-  });
-  return filteredObject;
+    return filteredObject;
+  };
+
+  if (Array.isArray(data)) return data.map(filterOne);
+  return filterOne(data);
 }
 
 // Nova função para extrair valores de caminhos aninhados
@@ -324,7 +342,7 @@ export function extractExperiences(jsonData: AnyObject): Experience[] {
 
     const paging = mainList.paging ?? mainList.components?.paging;
     if (paging) {
-      const { total = "unknown", count = "unknown", start = 0 } = paging;
+      const { total = "any", count = "any", start = 0 } = paging;
       console.warn(
         `[PROFILE] PAGINATION: ${count} of ${total} experiences (start: ${start})`,
       );
